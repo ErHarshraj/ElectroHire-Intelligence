@@ -14,25 +14,49 @@ class SQLAlchemyJobRepository(JobRepository):
         self._session = session
 
     def save(self, job: Job) -> None:
-        """Persist a domain job."""
+        """Persist a domain job, updating it if it already exists."""
 
-        model = JobModel(
-            title=job.title,
-            company=job.company,
-            location=job.location,
-            description=job.description,
-            source=job.source,
-            source_job_id=job.source_job_id,
-            source_url=str(job.source_url),
-            employment_type=job.employment_type,
-            experience_required=job.experience_required,
-            skills=",".join(job.skills),
-            posted_at=job.posted_at,
-            discovered_at=job.discovered_at,
-            is_active=job.is_active,
-        )
+        existing_model = None
 
-        self._session.add(model)
+        if job.source_job_id is not None:
+            statement = select(JobModel).where(
+                JobModel.source == job.source,
+                JobModel.source_job_id == job.source_job_id,
+            )
+            existing_model = self._session.scalar(statement)
+
+        if existing_model is None:
+            model = JobModel(
+                title=job.title,
+                company=job.company,
+                location=job.location,
+                description=job.description,
+                source=job.source,
+                source_job_id=job.source_job_id,
+                source_url=str(job.source_url),
+                employment_type=job.employment_type,
+                experience_required=job.experience_required,
+                skills=",".join(job.skills),
+                posted_at=job.posted_at,
+                discovered_at=job.discovered_at,
+                is_active=job.is_active,
+            )
+
+            self._session.add(model)
+
+        else:
+            existing_model.title = job.title
+            existing_model.company = job.company
+            existing_model.location = job.location
+            existing_model.description = job.description
+            existing_model.source_url = str(job.source_url)
+            existing_model.employment_type = job.employment_type
+            existing_model.experience_required = job.experience_required
+            existing_model.skills = ",".join(job.skills)
+            existing_model.posted_at = job.posted_at
+            existing_model.discovered_at = job.discovered_at
+            existing_model.is_active = job.is_active
+
         self._session.commit()
 
     def get_by_source_job_id(

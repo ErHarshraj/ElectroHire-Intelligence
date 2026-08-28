@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import DateTime, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -10,6 +10,14 @@ class Base(DeclarativeBase):
 
 class JobModel(Base):
     __tablename__ = "jobs"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "source",
+            "source_job_id",
+            name="uq_jobs_source_source_job_id",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 

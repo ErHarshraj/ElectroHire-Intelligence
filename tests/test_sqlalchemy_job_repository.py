@@ -91,3 +91,69 @@ def test_list_jobs() -> None:
     assert jobs[1].source_job_id == "JOB-002"
 
     session.close()
+
+def test_save_existing_job_updates_record() -> None:
+    session, repository = create_repository()
+
+    original_job = create_test_job("JOB-001")
+    repository.save(original_job)
+
+    updated_job = original_job.model_copy(
+        update={
+            "title": "Senior Embedded Hardware Engineer",
+            "company": "Updated Electronics",
+            "skills": ["STM32", "CAN", "PCB Design"],
+        }
+    )
+
+    repository.save(updated_job)
+
+    jobs = repository.list_jobs()
+
+    assert len(jobs) == 1
+    assert jobs[0].title == "Senior Embedded Hardware Engineer"
+    assert jobs[0].company == "Updated Electronics"
+    assert jobs[0].skills == ["STM32", "CAN", "PCB Design"]
+
+    session.close()
+
+
+def test_save_same_source_job_id_does_not_create_duplicate() -> None:
+    session, repository = create_repository()
+
+    job = create_test_job("JOB-001")
+
+    repository.save(job)
+    repository.save(job)
+
+    jobs = repository.list_jobs()
+
+    assert len(jobs) == 1
+    assert jobs[0].source == "mock"
+    assert jobs[0].source_job_id == "JOB-001"
+
+    session.close()
+
+def test_save_updates_existing_job() -> None:
+    session, repository = create_repository()
+
+    original = create_test_job("JOB-001")
+    repository.save(original)
+
+    updated = original.model_copy(
+        update={
+            "title": "Senior Embedded Hardware Engineer",
+            "company": "Updated Electronics",
+        }
+    )
+
+    repository.save(updated)
+
+    jobs = repository.list_jobs()
+
+    assert len(jobs) == 1
+    assert jobs[0].source_job_id == "JOB-001"
+    assert jobs[0].title == "Senior Embedded Hardware Engineer"
+    assert jobs[0].company == "Updated Electronics"
+
+    session.close()

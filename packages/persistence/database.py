@@ -27,5 +27,6 @@ def get_session() -> Generator[Session, None, None]:
     finally:
         session.close()
 
+
 def create_tables() -> None:
     Base.metadata.create_all(bind=engine)

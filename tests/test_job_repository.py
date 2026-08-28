@@ -1,58 +1,56 @@
+from datetime import datetime, timezone
+
 from pydantic import HttpUrl
 
 from packages.domain.job import Job
-from packages.persistence.job_repository import JobRepository
+from packages.persistence.in_memory import InMemoryJobRepository
 
 
-class MemoryJobRepository(JobRepository):
-    def __init__(self) -> None:
-        self.jobs: list[Job] = []
-
-    def save(self, job: Job) -> None:
-        self.jobs.append(job)
-
-    def get_by_source_job_id(
-        self,
-        source: str,
-        source_job_id: str,
-    ) -> Job | None:
-        for job in self.jobs:
-            if (
-                job.source == source
-                and job.source_job_id == source_job_id
-            ):
-                return job
-
-        return None
-
-    def list_jobs(self) -> list[Job]:
-        return list(self.jobs)
-
-
-def test_repository_contract() -> None:
-    repository = MemoryJobRepository()
-
-    job = Job(
+def make_job(source_job_id: str) -> Job:
+    return Job(
         title="Embedded Hardware Engineer",
         company="Example Electronics",
         source="mock",
-        source_job_id="MOCK-001",
-        source_url=HttpUrl("https://example.com/jobs/MOCK-001"),
-        discovered_at=__import__("datetime").datetime.now(
-            __import__("datetime").timezone.utc
+        source_job_id=source_job_id,
+        source_url=HttpUrl(
+            f"https://example.com/jobs/{source_job_id}"
         ),
+        discovered_at=datetime.now(timezone.utc),
     )
+
+
+def test_save_and_get_job() -> None:
+    repository = InMemoryJobRepository()
+    job = make_job("MOCK-001")
 
     repository.save(job)
 
-    assert repository.get_by_source_job_id(
+    result = repository.get_by_source_job_id(
         "mock",
         "MOCK-001",
-    ) == job
+    )
 
-    assert repository.get_by_source_job_id(
+    assert result == job
+
+
+def test_get_unknown_job_returns_none() -> None:
+    repository = InMemoryJobRepository()
+
+    result = repository.get_by_source_job_id(
         "mock",
         "DOES-NOT-EXIST",
-    ) is None
+    )
 
-    assert repository.list_jobs() == [job]
+    assert result is None
+
+
+def test_list_jobs_returns_all_jobs() -> None:
+    repository = InMemoryJobRepository()
+
+    job_1 = make_job("MOCK-001")
+    job_2 = make_job("MOCK-002")
+
+    repository.save(job_1)
+    repository.save(job_2)
+
+    assert repository.list_jobs() == [job_1, job_2]

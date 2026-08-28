@@ -3,6 +3,8 @@ from collections.abc import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from packages.persistence.models import Base
+
 DATABASE_URL = "sqlite:///./electrohire.db"
 
 engine = create_engine(
@@ -24,3 +26,6 @@ def get_session() -> Generator[Session, None, None]:
         yield session
     finally:
         session.close()
+
+def create_tables() -> None:
+    Base.metadata.create_all(bind=engine)

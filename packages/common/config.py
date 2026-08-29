@@ -23,6 +23,9 @@ class Settings(BaseSettings):
 
     secret_key: str = "CHANGE_ME"
 
+    adzuna_app_id: str | None = None
+    adzuna_app_key: str | None = None
+    adzuna_country: str = "in"
     llm_enabled: bool = False
     llm_api_key: str | None = None
 

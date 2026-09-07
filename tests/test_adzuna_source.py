@@ -165,4 +165,23 @@ def test_adzuna_job_source_fetches_and_parses_jobs(
     assert jobs[0].source == "adzuna"
     assert jobs[0].source_job_id == "123"
 
+def test_parse_job_handles_missing_company_name() -> None:
+    data = {
+        "id": "999",
+        "title": "Embedded Hardware Engineer",
+        "description": "Hardware engineering role.",
+        "redirect_url": "https://example.com/jobs/999",
+        "created": "2026-08-29T10:30:00Z",
+        "company": {
+            "__CLASS__": "Adzuna::API::Response::Company",
+        },
+        "location": {
+            "display_name": "Bangalore, Karnataka",
+        },
+    }
 
+    job = parse_job(data)
+
+    assert job.title == "Embedded Hardware Engineer"
+    assert job.company == "Unknown"
+    assert job.location == "Bangalore, Karnataka"

@@ -9,14 +9,24 @@ from packages.domain.job import Job
 def parse_job(data: dict[str, Any]) -> Job:
     """Convert one Adzuna job record into the internal Job model."""
 
+    company = data.get("company")
+    company_name = (
+        company.get("display_name")
+        if isinstance(company, dict)
+        else None
+    )
+
+    location = data.get("location")
+    location_name = (
+        location.get("display_name")
+        if isinstance(location, dict)
+        else None
+    )
+
     return Job(
         title=str(data["title"]),
-        company=str(data["company"]["display_name"]),
-        location=(
-            data.get("location", {}).get("display_name")
-            if data.get("location")
-            else None
-        ),
+        company=str(company_name) if company_name else "Unknown",
+        location=location_name,
         description=data.get("description"),
         source="adzuna",
         source_job_id=str(data["id"]),

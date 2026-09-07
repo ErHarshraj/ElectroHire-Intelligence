@@ -26,6 +26,16 @@ class Settings(BaseSettings):
     adzuna_app_id: str | None = None
     adzuna_app_key: str | None = None
     adzuna_country: str = "in"
+    adzuna_queries: list[str] = [
+        "embedded hardware",
+        "hardware design engineer",
+        "embedded systems engineer",
+        "PCB design engineer",
+        "electronics engineer",
+        "firmware engineer",
+        "robotics hardware engineer",
+    ]
+    adzuna_pages: int = 1
     llm_enabled: bool = False
     llm_api_key: str | None = None
 

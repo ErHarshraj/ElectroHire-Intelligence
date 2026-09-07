@@ -26,21 +26,31 @@ def run() -> None:
             country=settings.adzuna_country,
         )
 
-        source = AdzunaJobSource(
-            client=client,
-            query="embedded hardware",
-        )
-
         repository = SQLAlchemyJobRepository(session)
 
-        ingestion = IngestionService(
-            source=source,
-            repository=repository,
-        )
+        total_new_jobs = 0
 
-        jobs = ingestion.ingest()
+        for query in settings.adzuna_queries:
+            source = AdzunaJobSource(
+                client=client,
+                query=query,
+                pages=settings.adzuna_pages,
+            )
 
-        print(f"Discovered new jobs: {len(jobs)}")
+            ingestion = IngestionService(
+                source=source,
+                repository=repository,
+            )
+
+            jobs = ingestion.ingest()
+            total_new_jobs += len(jobs)
+
+            print(
+                f"Query: {query!r} | "
+                f"New jobs: {len(jobs)}"
+            )
+
+        print(f"Total new jobs: {total_new_jobs}")
 
     finally:
         session.close()

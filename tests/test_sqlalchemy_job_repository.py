@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from packages.domain.job import Job
+from packages.domain.job_status import JobStatus
 from packages.persistence.models import Base
 from packages.persistence.sqlalchemy_job_repository import (
     SQLAlchemyJobRepository,
@@ -58,6 +59,7 @@ def test_save_and_get_job() -> None:
     assert result.source_job_id == "JOB-001"
     assert result.source_url == job.source_url
     assert result.skills == job.skills
+    assert result.status == JobStatus.DISCOVERED
 
     session.close()
 
@@ -103,6 +105,7 @@ def test_save_existing_job_updates_record() -> None:
             "title": "Senior Embedded Hardware Engineer",
             "company": "Updated Electronics",
             "skills": ["STM32", "CAN", "PCB Design"],
+            "status": JobStatus.EVALUATED,
         }
     )
 
@@ -114,6 +117,7 @@ def test_save_existing_job_updates_record() -> None:
     assert jobs[0].title == "Senior Embedded Hardware Engineer"
     assert jobs[0].company == "Updated Electronics"
     assert jobs[0].skills == ["STM32", "CAN", "PCB Design"]
+    assert jobs[0].status == JobStatus.EVALUATED
 
     session.close()
 

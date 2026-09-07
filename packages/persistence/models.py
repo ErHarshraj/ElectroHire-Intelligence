@@ -3,6 +3,8 @@ from datetime import datetime
 from sqlalchemy import DateTime, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from packages.domain.job_status import JobStatus
+
 
 class Base(DeclarativeBase):
     pass
@@ -55,3 +57,4 @@ class JobModel(Base):
     )
 
     is_active: Mapped[bool] = mapped_column(default=True)
+    status: Mapped[str] = mapped_column(String(50), default=JobStatus.DISCOVERED.value)

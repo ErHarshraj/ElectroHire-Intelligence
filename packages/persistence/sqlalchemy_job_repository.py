@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from packages.domain.job import Job
+from packages.domain.job_status import JobStatus
 from packages.persistence.job_repository import JobRepository
 from packages.persistence.models import JobModel
 
@@ -40,6 +41,7 @@ class SQLAlchemyJobRepository(JobRepository):
                 posted_at=job.posted_at,
                 discovered_at=job.discovered_at,
                 is_active=job.is_active,
+                status=job.status.value,
             )
 
             self._session.add(model)
@@ -56,6 +58,7 @@ class SQLAlchemyJobRepository(JobRepository):
             existing_model.posted_at = job.posted_at
             existing_model.discovered_at = job.discovered_at
             existing_model.is_active = job.is_active
+            existing_model.status = job.status.value
 
         self._session.commit()
 
@@ -109,4 +112,5 @@ class SQLAlchemyJobRepository(JobRepository):
             posted_at=model.posted_at,
             discovered_at=model.discovered_at,
             is_active=model.is_active,
+            status=JobStatus(model.status),
         )

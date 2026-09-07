@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, HttpUrl
 
+from packages.domain.job_status import JobStatus
+
 
 class Job(BaseModel):
     """Canonical internal representation of a job opportunity."""
@@ -25,3 +27,4 @@ class Job(BaseModel):
     discovered_at: datetime
 
     is_active: bool = True
+    status: JobStatus = JobStatus.DISCOVERED

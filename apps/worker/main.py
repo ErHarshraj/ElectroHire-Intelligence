@@ -3,10 +3,45 @@ from packages.domain.lifecycle import JobLifecycle
 from packages.ingestion.service import IngestionService
 from packages.job_sources.adzuna.client import AdzunaClient
 from packages.job_sources.adzuna.source import AdzunaJobSource
+from packages.job_sources.base import JobSource
 from packages.matching.evaluation import JobEvaluationService
 from packages.matching.relevance import JobRelevanceEngine
 from packages.persistence.database import SessionLocal, create_tables
+from packages.persistence.job_repository import JobRepository
 from packages.persistence.sqlalchemy_job_repository import SQLAlchemyJobRepository
+
+
+def process_source(
+    source: JobSource,
+    repository: JobRepository,
+) -> tuple[int, int, int]:
+    """Ingest and evaluate newly discovered jobs from one source."""
+
+    ingestion = IngestionService(
+        source=source,
+        repository=repository,
+    )
+
+    evaluation = JobEvaluationService(
+        relevance_engine=JobRelevanceEngine(),
+        lifecycle=JobLifecycle(),
+        repository=repository,
+    )
+
+    jobs = ingestion.ingest()
+
+    evaluated_count = 0
+    ignored_count = 0
+
+    for job in jobs:
+        result = evaluation.evaluate(job)
+
+        if result.is_relevant:
+            evaluated_count += 1
+        else:
+            ignored_count += 1
+
+    return len(jobs), evaluated_count, ignored_count
 
 
 def run() -> None:
@@ -31,12 +66,6 @@ def run() -> None:
 
         repository = SQLAlchemyJobRepository(session)
 
-        evaluation = JobEvaluationService(
-            relevance_engine=JobRelevanceEngine(),
-            lifecycle=JobLifecycle(),
-            repository=repository,
-        )
-
         total_new_jobs = 0
         total_evaluated_jobs = 0
         total_ignored_jobs = 0
@@ -48,30 +77,18 @@ def run() -> None:
                 pages=settings.adzuna_pages,
             )
 
-            ingestion = IngestionService(
+            new_count, evaluated_count, ignored_count = process_source(
                 source=source,
                 repository=repository,
             )
 
-            jobs = ingestion.ingest()
-            total_new_jobs += len(jobs)
-
-            evaluated_count = 0
-            ignored_count = 0
-
-            for job in jobs:
-                result = evaluation.evaluate(job)
-
-                if result.is_relevant:
-                    evaluated_count += 1
-                    total_evaluated_jobs += 1
-                else:
-                    ignored_count += 1
-                    total_ignored_jobs += 1
+            total_new_jobs += new_count
+            total_evaluated_jobs += evaluated_count
+            total_ignored_jobs += ignored_count
 
             print(
                 f"Query: {query!r} | "
-                f"New jobs: {len(jobs)} | "
+                f"New jobs: {new_count} | "
                 f"Evaluated: {evaluated_count} | "
                 f"Ignored: {ignored_count}"
             )

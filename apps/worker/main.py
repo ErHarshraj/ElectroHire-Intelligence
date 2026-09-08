@@ -4,7 +4,9 @@ from packages.ingestion.service import IngestionService
 from packages.job_sources.adzuna.client import AdzunaClient
 from packages.job_sources.adzuna.source import AdzunaJobSource
 from packages.job_sources.base import JobSource
+from packages.matching.decision import JobDecisionEngine
 from packages.matching.evaluation import JobEvaluationService
+from packages.matching.ranking import JobRankingEngine
 from packages.matching.relevance import JobRelevanceEngine
 from packages.persistence.database import SessionLocal, create_tables
 from packages.persistence.job_repository import JobRepository
@@ -15,7 +17,7 @@ def process_source(
     source: JobSource,
     repository: JobRepository,
 ) -> tuple[int, int, int]:
-    """Ingest and evaluate newly discovered jobs from one source."""
+    """Ingest, evaluate, rank, and decide newly discovered jobs."""
 
     ingestion = IngestionService(
         source=source,
@@ -28,18 +30,33 @@ def process_source(
         repository=repository,
     )
 
+    ranking = JobRankingEngine()
+    decision = JobDecisionEngine()
+
     jobs = ingestion.ingest()
 
     evaluated_count = 0
     ignored_count = 0
 
     for job in jobs:
-        result = evaluation.evaluate(job)
+        relevance_result = evaluation.evaluate(job)
+        ranking_result = ranking.rank(job)
+        decision_result = decision.decide(
+            relevance=relevance_result,
+            ranking=ranking_result,
+        )
 
-        if result.is_relevant:
+        if relevance_result.is_relevant:
             evaluated_count += 1
         else:
             ignored_count += 1
+
+        print(
+            f"Job: {job.title!r} | "
+            f"Score: {ranking_result.score:.1f} | "
+            f"Priority: {ranking_result.priority} | "
+            f"Decision: {decision_result.action.value}"
+        )
 
     return len(jobs), evaluated_count, ignored_count
 

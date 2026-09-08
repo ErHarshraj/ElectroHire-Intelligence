@@ -21,16 +21,70 @@ class FakeApplicationRepository(ApplicationRepository):
     """In-memory application repository for worker integration tests."""
 
     def __init__(self) -> None:
-        self.records: list[ApplicationRecord] = []
+        self.records: dict[int, ApplicationRecord] = {}
+        self.next_id = 1
 
-    def save(self, record: ApplicationRecord) -> None:
-        self.records.append(record)
+    def save(self, record: ApplicationRecord) -> int:
+        application_id = self.next_id
+        self.next_id += 1
+
+        self.records[application_id] = ApplicationRecord(
+            job_id=record.job_id,
+            method=record.method,
+            status=record.status,
+            id=application_id,
+            apply_url=record.apply_url,
+            recruiter_email=record.recruiter_email,
+            external_reference=record.external_reference,
+            message=record.message,
+            started_at=record.started_at,
+            submitted_at=record.submitted_at,
+        )
+
+        return application_id
+
+    def get_latest(self, job_id: int) -> ApplicationRecord | None:
+        matches = [
+            (application_id, record)
+            for application_id, record in self.records.items()
+            if record.job_id == job_id
+        ]
+
+        if not matches:
+            return None
+
+        _, record = max(matches, key=lambda item: item[0])
+        return record
+
+    def update(
+        self,
+        application_id: int,
+        *,
+        status: ApplicationStatus,
+        message: str = "",
+        external_reference: str | None = None,
+        submitted_at: datetime | None = None,
+    ) -> None:
+        record = self.records[application_id]
+
+        self.records[application_id] = ApplicationRecord(
+            job_id=record.job_id,
+            method=record.method,
+            status=status,
+            id=application_id,
+            apply_url=record.apply_url,
+            recruiter_email=record.recruiter_email,
+            external_reference=external_reference,
+            message=message,
+            started_at=record.started_at,
+            submitted_at=submitted_at,
+        )
 
     def has_submitted_application(self, job_id: int) -> bool:
         return any(
             record.job_id == job_id
             and record.status == ApplicationStatus.SUBMITTED
-            for record in self.records
+            for record in self.records.values()
         )
 
 
@@ -104,7 +158,7 @@ def test_worker_prepares_browser_application() -> None:
     assert result == (1, 1, 0)
     assert len(application_repository.records) == 1
 
-    record = application_repository.records[0]
+    record = application_repository.records[1]
 
     assert record.job_id == 1
     assert record.status == ApplicationStatus.PENDING
@@ -136,7 +190,7 @@ def test_worker_prepares_email_application() -> None:
     assert result == (1, 1, 0)
     assert len(application_repository.records) == 1
 
-    record = application_repository.records[0]
+    record = application_repository.records[1]
 
     assert record.job_id == 1
     assert record.status == ApplicationStatus.PENDING
@@ -162,7 +216,7 @@ def test_worker_does_not_create_application_without_target() -> None:
     )
 
     assert result == (1, 1, 0)
-    assert application_repository.records == []
+    assert application_repository.records == {}
 
 
 def test_worker_does_not_create_application_when_application_infrastructure_is_disabled() -> None:

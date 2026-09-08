@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from packages.application.models import ApplicationStatus
+from packages.application.models import ApplicationMethod, ApplicationStatus
 from packages.persistence.application_repository import (
     ApplicationRecord,
     ApplicationRepository,
@@ -12,13 +12,13 @@ from packages.persistence.models import ApplicationModel
 
 
 class SQLAlchemyApplicationRepository(ApplicationRepository):
-    """SQLAlchemy implementation of application persistence."""
+    """SQLAlchemy persistence for application attempts."""
 
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def save(self, record: ApplicationRecord) -> None:
-        """Persist an application record."""
+    def save(self, record: ApplicationRecord) -> int:
+        """Create and persist a new application attempt."""
 
         now = datetime.now(timezone.utc)
 
@@ -37,6 +37,64 @@ class SQLAlchemyApplicationRepository(ApplicationRepository):
         )
 
         self.session.add(application)
+        self.session.flush()
+        application_id = application.id
+        self.session.commit()
+
+        return application_id
+
+    def get_latest(self, job_id: int) -> ApplicationRecord | None:
+        """Return the latest application attempt for a job."""
+
+        statement = (
+            select(ApplicationModel)
+            .where(ApplicationModel.job_id == job_id)
+            .order_by(ApplicationModel.id.desc())
+            .limit(1)
+        )
+
+        application = self.session.scalar(statement)
+
+        if application is None:
+            return None
+
+        return ApplicationRecord(
+            job_id=application.job_id,
+            method=ApplicationMethod(application.method),
+            status=ApplicationStatus(application.status),
+            id=application.id,
+            apply_url=application.apply_url,
+            recruiter_email=application.recruiter_email,
+            external_reference=application.external_reference,
+            message=application.message,
+            started_at=application.started_at,
+            submitted_at=application.submitted_at,
+        )
+
+    def update(
+        self,
+        application_id: int,
+        *,
+        status: ApplicationStatus,
+        message: str = "",
+        external_reference: str | None = None,
+        submitted_at: datetime | None = None,
+    ) -> None:
+        """Update an existing application attempt."""
+
+        application = self.session.get(ApplicationModel, application_id)
+
+        if application is None:
+            raise ValueError(
+                f"application attempt {application_id} does not exist"
+            )
+
+        application.status = status.value
+        application.message = message
+        application.external_reference = external_reference
+        application.submitted_at = submitted_at
+        application.updated_at = datetime.now(timezone.utc)
+
         self.session.commit()
 
     def has_submitted_application(self, job_id: int) -> bool:

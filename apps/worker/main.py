@@ -47,6 +47,7 @@ def process_source(
         relevance_result = evaluation.evaluate(job)
         ranking_result = ranking.rank(job)
         decision_result = decision.decide(
+            job=job,
             relevance=relevance_result,
             ranking=ranking_result,
         )

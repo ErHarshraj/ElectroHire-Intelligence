@@ -29,14 +29,25 @@ def evaluate(job: Job):
     return relevance, ranking
 
 
+def decide(job: Job):
+    relevance, ranking = evaluate(job)
+
+    result = JobDecisionEngine().decide(
+        job=job,
+        relevance=relevance,
+        ranking=ranking,
+    )
+
+    return relevance, ranking, result
+
+
 def test_high_relevant_job_is_apply() -> None:
     job = make_job(
         "Hardware Design Engineer",
         "Design hardware, PCB and electronic circuits.",
     )
 
-    relevance, ranking = evaluate(job)
-    result = JobDecisionEngine().decide(relevance, ranking)
+    relevance, ranking, result = decide(job)
 
     assert ranking.priority.lower() in {"high", "medium"}
     assert result.action == DecisionAction.APPLY
@@ -48,24 +59,70 @@ def test_medium_relevant_job_is_apply() -> None:
         "PCB layout and hardware design.",
     )
 
-    relevance, ranking = evaluate(job)
-    result = JobDecisionEngine().decide(relevance, ranking)
+    relevance, ranking, result = decide(job)
 
     assert ranking.priority.lower() in {"high", "medium"}
     assert result.action == DecisionAction.APPLY
 
 
-def test_low_job_defaults_to_alert() -> None:
+def test_low_hardware_job_is_apply() -> None:
+    job = make_job(
+        "Electrical Design & Development Engineer",
+        "Electrical hardware design and development.",
+    )
+
+    relevance, ranking, result = decide(job)
+
+    assert ranking.priority.lower() == "low"
+    assert result.action == DecisionAction.APPLY
+
+
+def test_low_embedded_system_job_is_apply() -> None:
+    job = make_job(
+        "Embedded System Engineer",
+        "Embedded system design and development.",
+    )
+
+    relevance, ranking, result = decide(job)
+
+    assert ranking.priority.lower() == "low"
+    assert result.action == DecisionAction.APPLY
+
+
+def test_low_openbmc_firmware_job_is_alert() -> None:
+    job = make_job(
+        "Sr. OpenBMC Firmware Engineer",
+        "OpenBMC and embedded firmware development.",
+    )
+
+    relevance, ranking, result = decide(job)
+
+    assert ranking.priority.lower() == "low"
+    assert result.action == DecisionAction.ALERT
+
+
+def test_low_wireless_firmware_job_is_alert() -> None:
+    job = make_job(
+        "Senior Wireless Firmware Engineer",
+        "Wireless embedded firmware development.",
+    )
+
+    relevance, ranking, result = decide(job)
+
+    assert ranking.priority.lower() == "low"
+    assert result.action == DecisionAction.ALERT
+
+
+def test_low_generic_firmware_job_is_ignore() -> None:
     job = make_job(
         "Firmware Engineer",
         "Embedded firmware development.",
     )
 
-    relevance, ranking = evaluate(job)
-    result = JobDecisionEngine().decide(relevance, ranking)
+    relevance, ranking, result = decide(job)
 
     assert ranking.priority.lower() == "low"
-    assert result.action == DecisionAction.ALERT
+    assert result.action == DecisionAction.IGNORE
 
 
 def test_irrelevant_job_is_ignored() -> None:
@@ -74,8 +131,7 @@ def test_irrelevant_job_is_ignored() -> None:
         "Manage customer accounts and business development.",
     )
 
-    relevance, ranking = evaluate(job)
-    result = JobDecisionEngine().decide(relevance, ranking)
+    relevance, ranking, result = decide(job)
 
     assert not relevance.is_relevant
     assert result.action == DecisionAction.IGNORE
@@ -87,7 +143,6 @@ def test_decision_is_explainable() -> None:
         "Design embedded hardware and PCB systems.",
     )
 
-    relevance, ranking = evaluate(job)
-    result = JobDecisionEngine().decide(relevance, ranking)
+    _, _, result = decide(job)
 
     assert result.reasons

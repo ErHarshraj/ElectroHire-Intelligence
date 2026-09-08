@@ -9,13 +9,18 @@ from packages.matching.evaluation import JobEvaluationService
 from packages.matching.ranking import JobRankingEngine
 from packages.matching.relevance import JobRelevanceEngine
 from packages.persistence.database import SessionLocal, create_tables
+from packages.persistence.decision_repository import DecisionRepository
 from packages.persistence.job_repository import JobRepository
+from packages.persistence.sqlalchemy_decision_repository import (
+    SQLAlchemyDecisionRepository,
+)
 from packages.persistence.sqlalchemy_job_repository import SQLAlchemyJobRepository
 
 
 def process_source(
     source: JobSource,
     repository: JobRepository,
+    decision_repository: DecisionRepository,
 ) -> tuple[int, int, int]:
     """Ingest, evaluate, rank, and decide newly discovered jobs."""
 
@@ -44,6 +49,22 @@ def process_source(
         decision_result = decision.decide(
             relevance=relevance_result,
             ranking=ranking_result,
+        )
+
+        if job.source_job_id is None:
+            raise ValueError(
+                f"Cannot persist decision for job without source_job_id: "
+                f"{job.title!r}."
+            )
+
+        decision_repository.save(
+            source=job.source,
+            source_job_id=job.source_job_id,
+            action=decision_result.action,
+            relevance_score=relevance_result.score,
+            ranking_score=ranking_result.score,
+            priority=ranking_result.priority,
+            reasons=decision_result.reasons,
         )
 
         if relevance_result.is_relevant:
@@ -82,6 +103,7 @@ def run() -> None:
         )
 
         repository = SQLAlchemyJobRepository(session)
+        decision_repository = SQLAlchemyDecisionRepository(session)
 
         total_new_jobs = 0
         total_evaluated_jobs = 0
@@ -97,6 +119,7 @@ def run() -> None:
             new_count, evaluated_count, ignored_count = process_source(
                 source=source,
                 repository=repository,
+                decision_repository=decision_repository,
             )
 
             total_new_jobs += new_count

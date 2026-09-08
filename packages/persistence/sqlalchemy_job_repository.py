@@ -81,6 +81,20 @@ class SQLAlchemyJobRepository(JobRepository):
 
         return self._to_domain(model)
 
+    def get_id_by_source_job_id(
+        self,
+        source: str,
+        source_job_id: str,
+    ) -> int | None:
+        """Return the database ID for a source-specific job."""
+
+        statement = select(JobModel.id).where(
+            JobModel.source == source,
+            JobModel.source_job_id == source_job_id,
+        )
+
+        return self._session.scalar(statement)
+
     def list_jobs(self) -> list[Job]:
         """Return all persisted jobs as domain objects."""
 

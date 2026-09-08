@@ -24,3 +24,12 @@ class JobRepository(ABC):
     def list_jobs(self) -> list[Job]:
         """Return all persisted jobs."""
         raise NotImplementedError
+
+    @abstractmethod
+    def get_id_by_source_job_id(
+        self,
+        source: str,
+        source_job_id: str,
+    ) -> int | None:
+        """Return the database ID for a source-specific job."""
+        raise NotImplementedError

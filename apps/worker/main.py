@@ -8,6 +8,7 @@ from packages.application.email.builder import EmailBuilder
 from packages.application.email.smtp import SMTPEmailTransport
 from packages.application.models import ApplicationMethod, ApplicationRequest
 from packages.application.profile import CandidateProfile
+from packages.application.stats import ApplicationRunStats
 from packages.common.config import Settings, get_settings
 from packages.domain.job import Job
 from packages.domain.lifecycle import JobLifecycle
@@ -38,11 +39,15 @@ def process_application(
     job_repository: JobRepository,
     application_service: ApplicationService,
     target_discovery: ApplyTargetDiscovery,
+    stats: ApplicationRunStats | None = None,
 ) -> str:
     """Prepare an application for an APPLY decision."""
 
     if decision_action != DecisionAction.APPLY:
         return "not_applicable"
+
+    if stats is not None:
+        stats.apply_decisions += 1
 
     if job.source_job_id is None:
         raise ValueError(
@@ -63,6 +68,9 @@ def process_application(
     target = target_discovery.discover(job)
 
     if target.method.value == "none":
+        if stats is not None:
+            stats.record_no_target()
+
         print(
             f"Application: NO TARGET | "
             f"Job: {job.title!r} | "
@@ -79,6 +87,9 @@ def process_application(
             f"Unsupported application target method: {target.method.value!r}"
         )
 
+    if stats is not None:
+        stats.record_target_found()
+
     request = ApplicationRequest(
         source=job.source,
         source_job_id=job.source_job_id,
@@ -93,6 +104,9 @@ def process_application(
         request=request,
         job_id=job_id,
     )
+
+    if stats is not None:
+        stats.record_result(result.status)
 
     print(
         f"Application: {result.status.value.upper()} | "
@@ -111,6 +125,7 @@ def process_source(
     application_repository: ApplicationRepository | None = None,
     application_service: ApplicationService | None = None,
     target_discovery: ApplyTargetDiscovery | None = None,
+    stats: ApplicationRunStats | None = None,
 ) -> tuple[int, int, int]:
     """Ingest, evaluate, rank, decide, and optionally prepare applications."""
 
@@ -132,6 +147,7 @@ def process_source(
 
     evaluated_count = 0
     ignored_count = 0
+    application_stats = stats or ApplicationRunStats()
 
     for job in jobs:
         relevance_result = evaluation.evaluate(job)
@@ -180,6 +196,7 @@ def process_source(
                 job_repository=repository,
                 application_service=application_service,
                 target_discovery=target_discovery,
+                stats=application_stats,
             )
 
     return len(jobs), evaluated_count, ignored_count
@@ -322,6 +339,7 @@ def run() -> None:
         total_new_jobs = 0
         total_evaluated_jobs = 0
         total_ignored_jobs = 0
+        total_application_stats = ApplicationRunStats()
 
         for query in settings.adzuna_queries:
             source = AdzunaJobSource(
@@ -334,6 +352,8 @@ def run() -> None:
             print(f"Processing query: {query}")
             print("=" * 60)
 
+            application_stats = ApplicationRunStats()
+
             new_count, evaluated_count, ignored_count = process_source(
                 source=source,
                 repository=repository,
@@ -341,11 +361,27 @@ def run() -> None:
                 application_repository=application_repository,
                 application_service=application_service,
                 target_discovery=target_discovery,
+                stats=application_stats,
             )
 
             total_new_jobs += new_count
             total_evaluated_jobs += evaluated_count
             total_ignored_jobs += ignored_count
+
+            total_application_stats.apply_decisions += (
+                application_stats.apply_decisions
+            )
+            total_application_stats.targets_found += (
+                application_stats.targets_found
+            )
+            total_application_stats.no_target += application_stats.no_target
+            total_application_stats.submitted += application_stats.submitted
+            total_application_stats.pending += application_stats.pending
+            total_application_stats.failed += application_stats.failed
+            total_application_stats.paused += application_stats.paused
+            total_application_stats.already_submitted += (
+                application_stats.already_submitted
+            )
 
             print(
                 f"Query: {query!r} | "
@@ -354,9 +390,34 @@ def run() -> None:
                 f"Ignored: {ignored_count}"
             )
 
+            print(
+                f"Applications: APPLY={application_stats.apply_decisions} | "
+                f"Targets={application_stats.targets_found} | "
+                f"No target={application_stats.no_target} | "
+                f"Submitted={application_stats.submitted} | "
+                f"Pending={application_stats.pending} | "
+                f"Failed={application_stats.failed} | "
+                f"Paused={application_stats.paused} | "
+                f"Already submitted={application_stats.already_submitted}"
+            )
+
         print(f"Total new jobs: {total_new_jobs}")
         print(f"Total evaluated jobs: {total_evaluated_jobs}")
         print(f"Total ignored jobs: {total_ignored_jobs}")
+        print("=" * 60)
+        print("Application Run Summary")
+        print("=" * 60)
+        print(f"Apply decisions   : {total_application_stats.apply_decisions}")
+        print(f"Targets found     : {total_application_stats.targets_found}")
+        print(f"No target         : {total_application_stats.no_target}")
+        print(f"Submitted         : {total_application_stats.submitted}")
+        print(f"Pending           : {total_application_stats.pending}")
+        print(f"Failed            : {total_application_stats.failed}")
+        print(f"Paused            : {total_application_stats.paused}")
+        print(
+            "Already submitted: "
+            f"{total_application_stats.already_submitted}"
+        )
 
     finally:
         session.close()

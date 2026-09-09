@@ -1,9 +1,14 @@
 from dataclasses import dataclass
 from enum import Enum
 
+from packages.application.application_service import ApplicationService
 from packages.application.discovery.target import ApplicationTargetMethod
 from packages.application.discovery.target_discovery import ApplyTargetDiscovery
-from packages.application.models import ApplicationMethod
+from packages.application.models import (
+    ApplicationMethod,
+    ApplicationRequest,
+    ApplicationResult,
+)
 from packages.application.recovery import ApplicationRetryCandidate
 from packages.domain.job import Job
 from packages.persistence.application_repository import ApplicationRepository
@@ -26,17 +31,19 @@ class RecoveryExecutionPlan:
 
 
 class ApplicationRecoveryExecutor:
-    """Validate retry candidates against the current job and target."""
+    """Validate and execute safe retries through the application service."""
 
     def __init__(
         self,
         job_repository: JobRepository,
         application_repository: ApplicationRepository,
         target_discovery: ApplyTargetDiscovery,
+        application_service: ApplicationService | None = None,
     ) -> None:
         self.job_repository = job_repository
         self.application_repository = application_repository
         self.target_discovery = target_discovery
+        self.application_service = application_service
 
     def prepare(
         self,
@@ -115,6 +122,51 @@ class ApplicationRecoveryExecutor:
             action=RecoveryExecutionAction.SKIP,
             message="unsupported application target",
         )
+
+    def execute(
+        self,
+        candidate: ApplicationRetryCandidate,
+    ) -> tuple[RecoveryExecutionPlan, ApplicationResult | None]:
+        """Execute a validated retry through the normal application lifecycle."""
+
+        plan = self.prepare(candidate)
+
+        if plan.action == RecoveryExecutionAction.SKIP:
+            return plan, None
+
+        if self.application_service is None:
+            raise RuntimeError(
+                "application service is required to execute recovery retries"
+            )
+
+        job = self._get_job(candidate.job_id)
+        if job is None:
+            return (
+                RecoveryExecutionPlan(
+                    job_id=candidate.job_id,
+                    action=RecoveryExecutionAction.SKIP,
+                    message="job no longer exists",
+                ),
+                None,
+            )
+
+        request = ApplicationRequest(
+            source=job.source,
+            source_job_id=job.source_job_id or "",
+            job_title=job.title,
+            company=job.company,
+            application_method=plan.application_method
+            or ApplicationMethod(candidate.method),
+            apply_url=plan.apply_url,
+            recruiter_email=plan.recruiter_email,
+        )
+
+        result = self.application_service.submit(
+            request,
+            job_id=candidate.job_id,
+        )
+
+        return plan, result
 
     def _get_job(self, job_id: int) -> Job | None:
         for job in self.job_repository.list_jobs():

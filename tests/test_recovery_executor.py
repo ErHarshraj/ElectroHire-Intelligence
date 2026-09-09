@@ -1,8 +1,18 @@
 from datetime import datetime, timezone
 
+from packages.application.adapters.base import ApplicationAdapter
+from packages.application.application_service import ApplicationService
 from packages.application.discovery.target_discovery import ApplyTargetDiscovery
-from packages.application.models import ApplicationMethod, ApplicationStatus
-from packages.application.recovery import ApplicationRecoveryService
+from packages.application.models import (
+    ApplicationMethod,
+    ApplicationRequest,
+    ApplicationResult,
+    ApplicationStatus,
+)
+from packages.application.recovery import (
+    ApplicationRecoveryService,
+    ApplicationRetryCandidate,
+)
 from packages.application.recovery_executor import (
     ApplicationRecoveryExecutor,
     RecoveryExecutionAction,
@@ -50,6 +60,26 @@ class FakeJobRepository(JobRepository):
 
     def list_jobs(self) -> list[Job]:
         return self.jobs
+
+
+class RecordingAdapter(ApplicationAdapter):
+    def __init__(self, result: ApplicationResult | None = None) -> None:
+        self.requests: list[ApplicationRequest] = []
+        self.result = result or ApplicationResult(
+            status=ApplicationStatus.SUBMITTED,
+            method=ApplicationMethod.EMAIL,
+            message="application submitted successfully",
+            external_reference="external-123",
+        )
+
+    def submit(self, request: ApplicationRequest) -> ApplicationResult:
+        self.requests.append(request)
+        return self.result
+
+
+class FailingAdapter(ApplicationAdapter):
+    def submit(self, request: ApplicationRequest) -> ApplicationResult:
+        raise RuntimeError("adapter failure")
 
 
 class FakeApplicationRepository(ApplicationRepository):
@@ -177,6 +207,7 @@ def make_failed_application(job_id: int) -> ApplicationRecord:
 
 def make_executor(
     job: Job | None = None,
+    application_service: ApplicationService | None = None,
 ) -> tuple[
     ApplicationRecoveryExecutor,
     FakeJobRepository,
@@ -193,6 +224,7 @@ def make_executor(
         job_repository=job_repository,
         application_repository=application_repository,
         target_discovery=ApplyTargetDiscovery(),
+        application_service=application_service,
     )
 
     return executor, job_repository, application_repository
@@ -325,3 +357,177 @@ def test_prepare_skips_already_submitted_job() -> None:
     ).build_retry_plan()
 
     assert candidate == []
+
+
+def make_retry_candidate(
+    application_repository: FakeApplicationRepository,
+) -> "ApplicationRetryCandidate":
+    from packages.application.recovery import ApplicationRetryCandidate
+
+    application_id = application_repository.get_latest(1)
+    assert application_id is not None
+    assert application_id.id is not None
+
+    return ApplicationRetryCandidate(
+        job_id=1,
+        application_id=application_id.id,
+        method=application_id.method.value,
+        message="failed application attempt is eligible for retry",
+    )
+
+
+def test_execute_submits_retry_through_application_service() -> None:
+    adapter = RecordingAdapter()
+    executor, _, application_repository = make_executor(make_job())
+
+    application_repository.save(make_failed_application(job_id=1))
+    candidate = make_retry_candidate(application_repository)
+
+    # Bind the executor to the same repository used by the test after construction.
+    executor.application_service = ApplicationService(
+        email_adapter=adapter,
+        browser_adapter=adapter,
+        repository=application_repository,
+    )
+
+    plan, result = executor.execute(candidate)
+
+    assert plan.action == RecoveryExecutionAction.READY
+    assert result is not None
+    assert result.status == ApplicationStatus.SUBMITTED
+    assert len(adapter.requests) == 1
+    request = adapter.requests[0]
+    assert request.application_method == ApplicationMethod.EMAIL
+    assert request.recruiter_email == "careers@example.com"
+    assert request.source == "adzuna"
+    assert request.source_job_id == "job-1"
+    assert request.job_title == "Hardware Design Engineer"
+    assert request.company == "Example Electronics"
+
+    latest = application_repository.get_latest(1)
+    assert latest is not None
+    assert latest.status == ApplicationStatus.SUBMITTED
+
+
+def test_execute_uses_current_target_when_retry_target_changed() -> None:
+    adapter = RecordingAdapter()
+    executor, _, application_repository = make_executor(make_job(
+        description="Apply by email to new-careers@example.com"
+    ))
+    executor.application_service = ApplicationService(
+        email_adapter=adapter,
+        browser_adapter=adapter,
+        repository=application_repository,
+    )
+
+    application_repository.save(make_failed_application(job_id=1))
+    candidate = make_retry_candidate(application_repository)
+
+    _, result = executor.execute(candidate)
+
+    assert result is not None
+    assert adapter.requests[0].recruiter_email == "new-careers@example.com"
+
+
+def test_execute_skips_without_calling_adapter_when_target_disappeared() -> None:
+    adapter = RecordingAdapter()
+    executor, _, application_repository = make_executor(
+        make_job(description="No application contact available")
+    )
+    executor.application_service = ApplicationService(
+        email_adapter=adapter,
+        browser_adapter=adapter,
+        repository=application_repository,
+    )
+
+    application_repository.save(make_failed_application(job_id=1))
+    candidate = make_retry_candidate(application_repository)
+
+    plan, result = executor.execute(candidate)
+
+    assert plan.action == RecoveryExecutionAction.SKIP
+    assert result is None
+    assert adapter.requests == []
+
+
+def test_execute_skips_stale_candidate_without_calling_adapter() -> None:
+    adapter = RecordingAdapter()
+    executor, _, application_repository = make_executor(make_job())
+    executor.application_service = ApplicationService(
+        email_adapter=adapter,
+        browser_adapter=adapter,
+        repository=application_repository,
+    )
+
+    application_repository.save(make_failed_application(job_id=1))
+    application_repository.save(
+        ApplicationRecord(
+            job_id=1,
+            method=ApplicationMethod.EMAIL,
+            status=ApplicationStatus.PAUSED,
+            started_at=datetime.now(timezone.utc),
+        )
+    )
+
+    from packages.application.recovery import ApplicationRetryCandidate
+
+    candidate = ApplicationRetryCandidate(
+        job_id=1,
+        application_id=1,
+        method="email",
+        message="failed application attempt is eligible for retry",
+    )
+
+    plan, result = executor.execute(candidate)
+
+    assert plan.action == RecoveryExecutionAction.SKIP
+    assert result is None
+    assert adapter.requests == []
+
+
+def test_execute_persists_paused_when_adapter_interrupted() -> None:
+    executor, _, application_repository = make_executor(make_job())
+    executor.application_service = ApplicationService(
+        email_adapter=FailingAdapter(),
+        browser_adapter=FailingAdapter(),
+        repository=application_repository,
+    )
+
+    application_repository.save(make_failed_application(job_id=1))
+    candidate = make_retry_candidate(application_repository)
+
+    _, result = executor.execute(candidate)
+
+    assert result is not None
+    assert result.status == ApplicationStatus.PAUSED
+    latest = application_repository.get_latest(1)
+    assert latest is not None
+    assert latest.status == ApplicationStatus.PAUSED
+
+
+def test_execute_does_not_resubmit_if_job_became_submitted() -> None:
+    adapter = RecordingAdapter()
+    executor, _, application_repository = make_executor(make_job())
+    executor.application_service = ApplicationService(
+        email_adapter=adapter,
+        browser_adapter=adapter,
+        repository=application_repository,
+    )
+
+    application_repository.save(make_failed_application(job_id=1))
+    candidate = make_retry_candidate(application_repository)
+    application_repository.save(
+        ApplicationRecord(
+            job_id=1,
+            method=ApplicationMethod.EMAIL,
+            status=ApplicationStatus.SUBMITTED,
+            started_at=datetime.now(timezone.utc),
+            submitted_at=datetime.now(timezone.utc),
+        )
+    )
+
+    plan, result = executor.execute(candidate)
+
+    assert plan.action == RecoveryExecutionAction.SKIP
+    assert result is None
+    assert adapter.requests == []

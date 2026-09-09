@@ -58,18 +58,67 @@ class SQLAlchemyApplicationRepository(ApplicationRepository):
         if application is None:
             return None
 
-        return ApplicationRecord(
-            job_id=application.job_id,
-            method=ApplicationMethod(application.method),
-            status=ApplicationStatus(application.status),
-            id=application.id,
-            apply_url=application.apply_url,
-            recruiter_email=application.recruiter_email,
-            external_reference=application.external_reference,
-            message=application.message,
-            started_at=application.started_at,
-            submitted_at=application.submitted_at,
+        return self._to_record(application)
+
+    def get_by_status(
+        self,
+        status: ApplicationStatus,
+    ) -> list[ApplicationRecord]:
+        """Return application attempts with the requested status."""
+
+        statement = (
+            select(ApplicationModel)
+            .where(ApplicationModel.status == status.value)
+            .order_by(ApplicationModel.id.asc())
         )
+
+        applications = self.session.scalars(statement).all()
+
+        return [
+            self._to_record(application)
+            for application in applications
+        ]
+
+    def list_active_attempts(self) -> list[ApplicationRecord]:
+        """Return attempts requiring recovery before another submission."""
+
+        active_statuses = (
+            ApplicationStatus.PENDING.value,
+            ApplicationStatus.IN_PROGRESS.value,
+            ApplicationStatus.PAUSED.value,
+        )
+
+        statement = (
+            select(ApplicationModel)
+            .where(ApplicationModel.status.in_(active_statuses))
+            .order_by(ApplicationModel.id.asc())
+        )
+
+        applications = self.session.scalars(statement).all()
+
+        return [
+            self._to_record(application)
+            for application in applications
+        ]
+
+    def list_retryable_attempts(self) -> list[ApplicationRecord]:
+        """Return failed attempts that are eligible for retry."""
+
+        statement = (
+            select(ApplicationModel)
+            .where(
+                ApplicationModel.status
+                == ApplicationStatus.FAILED.value
+            )
+            .order_by(ApplicationModel.id.asc())
+        )
+
+        applications = self.session.scalars(statement).all()
+
+        return [
+            self._to_record(application)
+            for application in applications
+        ]
 
     def update(
         self,
@@ -106,3 +155,20 @@ class SQLAlchemyApplicationRepository(ApplicationRepository):
         )
 
         return self.session.execute(statement).first() is not None
+
+    @staticmethod
+    def _to_record(application: ApplicationModel) -> ApplicationRecord:
+        """Convert a database model into a domain persistence record."""
+
+        return ApplicationRecord(
+            job_id=application.job_id,
+            method=ApplicationMethod(application.method),
+            status=ApplicationStatus(application.status),
+            id=application.id,
+            apply_url=application.apply_url,
+            recruiter_email=application.recruiter_email,
+            external_reference=application.external_reference,
+            message=application.message,
+            started_at=application.started_at,
+            submitted_at=application.submitted_at,
+        )

@@ -56,6 +56,37 @@ class FakeApplicationRepository(ApplicationRepository):
         _, record = max(matches, key=lambda item: item[0])
         return record
 
+
+    def get_by_status(
+        self,
+        status: ApplicationStatus,
+    ) -> list[ApplicationRecord]:
+        return [
+            record
+            for record in self.records.values()
+            if record.status == status
+        ]
+
+    def list_active_attempts(self) -> list[ApplicationRecord]:
+        active_statuses = {
+            ApplicationStatus.PENDING,
+            ApplicationStatus.IN_PROGRESS,
+            ApplicationStatus.PAUSED,
+        }
+
+        return [
+            record
+            for record in self.records.values()
+            if record.status in active_statuses
+        ]
+
+    def list_retryable_attempts(self) -> list[ApplicationRecord]:
+        return [
+            record
+            for record in self.records.values()
+            if record.status == ApplicationStatus.FAILED
+        ]
+
     def update(
         self,
         application_id: int,

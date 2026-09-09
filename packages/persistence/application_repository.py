@@ -25,16 +25,30 @@ class ApplicationRecord:
 
 
 class ApplicationRepository(ABC):
-    """Persistence interface for application attempts."""
-
     @abstractmethod
     def save(self, record: ApplicationRecord) -> int:
-        """Create and persist a new application attempt."""
         raise NotImplementedError
 
     @abstractmethod
     def get_latest(self, job_id: int) -> ApplicationRecord | None:
-        """Return the latest application attempt for a job."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_by_status(
+        self,
+        status: ApplicationStatus,
+    ) -> list[ApplicationRecord]:
+        """Return application attempts with the requested status."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_active_attempts(self) -> list[ApplicationRecord]:
+        """Return attempts requiring recovery before another submission."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_retryable_attempts(self) -> list[ApplicationRecord]:
+        """Return failed attempts that are eligible for retry."""
         raise NotImplementedError
 
     @abstractmethod
@@ -47,10 +61,8 @@ class ApplicationRepository(ABC):
         external_reference: str | None = None,
         submitted_at: datetime | None = None,
     ) -> None:
-        """Update an existing application attempt."""
         raise NotImplementedError
 
     @abstractmethod
     def has_submitted_application(self, job_id: int) -> bool:
-        """Return whether the job already has a submitted application."""
         raise NotImplementedError

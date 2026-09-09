@@ -45,6 +45,15 @@ class Settings(BaseSettings):
     smtp_username: str | None = None
     smtp_password: str | None = None
 
+    candidate_name: str = "Harshraj"
+    candidate_email: str | None = None
+    candidate_phone: str | None = None
+    candidate_location: str | None = None
+    candidate_resume_path: str | None = None
+    candidate_linkedin_url: str | None = None
+    candidate_github_url: str | None = None
+    candidate_portfolio_url: str | None = None
+
     log_level: str = "INFO"
 
     model_config = SettingsConfigDict(

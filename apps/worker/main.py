@@ -1,8 +1,14 @@
+from pathlib import Path
+
 from packages.application.adapters.dry_run import DryRunApplicationAdapter
+from packages.application.adapters.email import EmailApplicationAdapter
 from packages.application.application_service import ApplicationService
 from packages.application.discovery.target_discovery import ApplyTargetDiscovery
+from packages.application.email.builder import EmailBuilder
+from packages.application.email.smtp import SMTPEmailTransport
 from packages.application.models import ApplicationMethod, ApplicationRequest
-from packages.common.config import get_settings
+from packages.application.profile import CandidateProfile
+from packages.common.config import Settings, get_settings
 from packages.domain.job import Job
 from packages.domain.lifecycle import JobLifecycle
 from packages.ingestion.service import IngestionService
@@ -179,6 +185,109 @@ def process_source(
     return len(jobs), evaluated_count, ignored_count
 
 
+def build_application_service(
+    settings: Settings,
+    application_repository: ApplicationRepository,
+) -> ApplicationService:
+    """Build the application service from runtime configuration."""
+
+    dry_run_adapter = DryRunApplicationAdapter()
+
+    if not settings.email_enabled:
+        return ApplicationService(
+            email_adapter=dry_run_adapter,
+            browser_adapter=dry_run_adapter,
+            repository=application_repository,
+        )
+
+    required_email_settings = {
+        "smtp_host": settings.smtp_host,
+        "smtp_port": settings.smtp_port,
+        "smtp_username": settings.smtp_username,
+        "smtp_password": settings.smtp_password,
+        "candidate_email": settings.candidate_email,
+        "candidate_phone": settings.candidate_phone,
+        "candidate_resume_path": settings.candidate_resume_path,
+    }
+
+    missing_settings = [
+        name
+        for name, value in required_email_settings.items()
+        if value is None
+        or (isinstance(value, str) and not value.strip())
+    ]
+
+    if missing_settings:
+        raise RuntimeError(
+            "Email sending is enabled but required settings are missing: "
+            + ", ".join(missing_settings)
+        )
+
+    smtp_host = settings.smtp_host
+    smtp_port = settings.smtp_port
+    smtp_username = settings.smtp_username
+    smtp_password = settings.smtp_password
+    candidate_email = settings.candidate_email
+    candidate_phone = settings.candidate_phone
+    candidate_resume_path = settings.candidate_resume_path
+
+    assert smtp_host is not None
+    assert smtp_port is not None
+    assert smtp_username is not None
+    assert smtp_password is not None
+    assert candidate_email is not None
+    assert candidate_phone is not None
+    assert candidate_resume_path is not None
+
+    candidate = CandidateProfile(
+        full_name=settings.candidate_name,
+        email=candidate_email,
+        phone=candidate_phone,
+        location=settings.candidate_location,
+        resume_path=candidate_resume_path,
+        linkedin_url=settings.candidate_linkedin_url,
+        github_url=settings.candidate_github_url,
+        portfolio_url=settings.candidate_portfolio_url,
+    )
+
+    template_path = Path("templates/job_application.txt")
+
+    if not template_path.is_file():
+        raise RuntimeError(
+            f"Email template not found: {template_path.resolve()}"
+        )
+
+    resume_path = Path(candidate_resume_path)
+
+    if not resume_path.is_file():
+        raise RuntimeError(
+            f"Candidate resume not found: {resume_path.resolve()}"
+        )
+
+    email_builder = EmailBuilder(
+        template_path=template_path,
+    )
+
+    smtp_transport = SMTPEmailTransport(
+        host=smtp_host,
+        port=smtp_port,
+        username=smtp_username,
+        password=smtp_password,
+    )
+
+    email_adapter = EmailApplicationAdapter(
+        candidate=candidate,
+        builder=email_builder,
+        transport=smtp_transport,
+    )
+
+    return ApplicationService(
+        email_adapter=email_adapter,
+        browser_adapter=dry_run_adapter,
+        repository=application_repository,
+    )
+
+
 def run() -> None:
     settings = get_settings()
 
@@ -203,12 +312,9 @@ def run() -> None:
         decision_repository = SQLAlchemyDecisionRepository(session)
         application_repository = SQLAlchemyApplicationRepository(session)
 
-        dry_run_adapter = DryRunApplicationAdapter()
-
-        application_service = ApplicationService(
-            email_adapter=dry_run_adapter,
-            browser_adapter=dry_run_adapter,
-            repository=application_repository,
+        application_service = build_application_service(
+            settings=settings,
+            application_repository=application_repository,
         )
 
         target_discovery = ApplyTargetDiscovery()
@@ -223,6 +329,10 @@ def run() -> None:
                 query=query,
                 pages=settings.adzuna_pages,
             )
+
+            print("=" * 60)
+            print(f"Processing query: {query}")
+            print("=" * 60)
 
             new_count, evaluated_count, ignored_count = process_source(
                 source=source,

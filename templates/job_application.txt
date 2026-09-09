@@ -1,0 +1,19 @@
+Subject: Application for {{job_title}} at {{company}}
+
+Dear Hiring Manager,
+
+I hope you are doing well.
+
+I am {{name}}, an Electrical and Electronics Engineering graduate seeking opportunities in Hardware Design, Hardware Engineering, Embedded Hardware, PCB Design, and Circuit Design.
+
+I came across the {{job_title}} opportunity at {{company}} and would like to be considered for the position. Please find my resume attached for your review.
+
+If my profile is relevant to the role, I would be grateful for the opportunity to discuss how my skills and project experience could contribute to your team.
+
+Thank you for your time and consideration. I look forward to hearing from you.
+
+Best regards,
+
+{{name}}
+{{candidate_email}}
+{{phone}}

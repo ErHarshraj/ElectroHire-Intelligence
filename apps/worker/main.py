@@ -8,6 +8,8 @@ from packages.application.email.builder import EmailBuilder
 from packages.application.email.smtp import SMTPEmailTransport
 from packages.application.models import ApplicationMethod, ApplicationRequest
 from packages.application.profile import CandidateProfile
+from packages.application.recovery import ApplicationRecoveryService
+from packages.application.recovery_executor import ApplicationRecoveryExecutor
 from packages.application.stats import ApplicationRunStats
 from packages.common.config import Settings, get_settings
 from packages.domain.job import Job
@@ -305,6 +307,70 @@ def build_application_service(
     )
 
 
+def run_recovery_phase(
+    job_repository: JobRepository,
+    application_repository: ApplicationRepository,
+    application_service: ApplicationService,
+    target_discovery: ApplyTargetDiscovery,
+    stats: ApplicationRunStats,
+) -> None:
+    """Retry eligible failed applications safely."""
+
+    recovery_service = ApplicationRecoveryService(
+        repository=application_repository,
+    )
+
+    recovery_executor = ApplicationRecoveryExecutor(
+        job_repository=job_repository,
+        application_repository=application_repository,
+        target_discovery=target_discovery,
+        application_service=application_service,
+    )
+
+    candidates = recovery_service.build_retry_plan()
+
+    stats.recovery_candidates = len(candidates)
+
+    print("=" * 60)
+    print("Application Recovery")
+    print("=" * 60)
+
+    if not candidates:
+        print("No failed applications are eligible for retry.")
+        return
+
+    print(f"Recovery candidates: {len(candidates)}")
+
+    for candidate in candidates:
+        print(
+            f"Recovery: job_id={candidate.job_id} "
+            f"application_id={candidate.application_id} "
+            f"method={candidate.method}"
+        )
+
+        try:
+            plan, result = recovery_executor.execute(candidate)
+
+            if result is None:
+                stats.recovery_skipped += 1
+                print(f"Recovery skipped: {plan.message}")
+                continue
+
+            stats.record_recovery_result(result.status)
+
+            print(
+                f"Recovery result: {result.status.value} | "
+                f"{result.message}"
+            )
+
+        except Exception as exc:
+            stats.recovery_failed += 1
+            print(
+                f"Recovery execution error: "
+                f"job_id={candidate.job_id} | {exc}"
+            )
+
+
 def run() -> None:
     settings = get_settings()
 
@@ -400,6 +466,14 @@ def run() -> None:
                 f"Paused={application_stats.paused} | "
                 f"Already submitted={application_stats.already_submitted}"
             )
+
+        run_recovery_phase(
+            job_repository=repository,
+            application_repository=application_repository,
+            application_service=application_service,
+            target_discovery=target_discovery,
+            stats=total_application_stats,
+        )
 
         print(f"Total new jobs: {total_new_jobs}")
         print(f"Total evaluated jobs: {total_evaluated_jobs}")

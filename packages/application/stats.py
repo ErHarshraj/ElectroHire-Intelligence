@@ -16,6 +16,12 @@ class ApplicationRunStats:
     paused: int = 0
     already_submitted: int = 0
 
+    recovery_candidates: int = 0
+    recovery_submitted: int = 0
+    recovery_failed: int = 0
+    recovery_paused: int = 0
+    recovery_skipped: int = 0
+
     def record_target_found(self) -> None:
         self.targets_found += 1
 
@@ -33,3 +39,11 @@ class ApplicationRunStats:
             self.paused += 1
         elif status == ApplicationStatus.ALREADY_SUBMITTED:
             self.already_submitted += 1
+
+    def record_recovery_result(self, status: ApplicationStatus) -> None:
+        if status == ApplicationStatus.SUBMITTED:
+            self.recovery_submitted += 1
+        elif status == ApplicationStatus.FAILED:
+            self.recovery_failed += 1
+        elif status == ApplicationStatus.PAUSED:
+            self.recovery_paused += 1

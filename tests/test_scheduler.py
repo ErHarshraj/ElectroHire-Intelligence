@@ -113,3 +113,28 @@ def test_scheduler_settings_expose_intervals() -> None:
 
     assert config.discovery_interval_minutes == 90
     assert config.recovery_interval_minutes == 45
+
+
+def test_scheduler_continues_after_failed_cycle() -> None:
+    work = FakeWork(failures=1)
+
+    sleep_calls: list[float] = []
+
+    scheduler: SchedulerService
+
+    def fake_sleep(seconds: float) -> None:
+        sleep_calls.append(seconds)
+
+        if len(sleep_calls) >= 2:
+            scheduler.stop()
+
+    scheduler = SchedulerService(
+        work=work,
+        config=SchedulerConfig(discovery_interval_minutes=1),
+        sleep_func=fake_sleep,
+    )
+
+    scheduler.run_forever()
+
+    assert work.calls == 2
+    assert sleep_calls == [60, 60]

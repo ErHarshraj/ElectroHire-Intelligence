@@ -36,6 +36,9 @@ class Settings(BaseSettings):
         "robotics hardware engineer",
     ]
     adzuna_pages: int = 1
+
+    scheduler_discovery_interval_minutes: int = 60
+    scheduler_recovery_interval_minutes: int = 30
     llm_enabled: bool = False
     llm_api_key: str | None = None
 

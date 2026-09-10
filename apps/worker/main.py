@@ -272,7 +272,10 @@ def run_scheduled() -> None:
             session=session,
         )
 
-        scheduler_config = SchedulerConfig()
+        scheduler_config = SchedulerConfig(
+            discovery_interval_minutes=settings.scheduler_discovery_interval_minutes,
+            recovery_interval_minutes=settings.scheduler_recovery_interval_minutes,
+        )
 
         scheduler = SchedulerService(
             work=ScheduledWorker(cycle),

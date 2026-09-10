@@ -17,7 +17,11 @@ class SchedulerConfig:
 
     def __post_init__(self) -> None:
         if self.discovery_interval_minutes <= 0:
-            raise ValueError("discovery interval must be greater than zero")
+            raise ValueError(
+                "discovery_interval_minutes must be greater than zero"
+            )
 
         if self.recovery_interval_minutes <= 0:
-            raise ValueError("recovery interval must be greater than zero")
+            raise ValueError(
+                "recovery_interval_minutes must be greater than zero"
+            )

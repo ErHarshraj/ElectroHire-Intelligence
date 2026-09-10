@@ -96,3 +96,20 @@ def test_scheduler_rejects_zero_runtime_interval() -> None:
 
     with pytest.raises(ValueError):
         scheduler.run_forever(interval_minutes=0)
+
+
+def test_scheduler_settings_expose_intervals() -> None:
+    from packages.common.config import Settings
+
+    settings = Settings(
+        scheduler_discovery_interval_minutes=90,
+        scheduler_recovery_interval_minutes=45,
+    )
+
+    config = SchedulerConfig(
+        discovery_interval_minutes=settings.scheduler_discovery_interval_minutes,
+        recovery_interval_minutes=settings.scheduler_recovery_interval_minutes,
+    )
+
+    assert config.discovery_interval_minutes == 90
+    assert config.recovery_interval_minutes == 45

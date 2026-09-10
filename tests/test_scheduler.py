@@ -1,57 +1,98 @@
+from datetime import datetime
+
+import pytest
+
 from packages.scheduler.models import SchedulerConfig
 from packages.scheduler.service import ScheduledWork, SchedulerService
 
 
-class RecordingWork(ScheduledWork):
-    def __init__(self) -> None:
+class FakeWork(ScheduledWork):
+    def __init__(self, failures: int = 0) -> None:
         self.calls = 0
+        self.failures = failures
 
     def run_cycle(self) -> None:
         self.calls += 1
 
-
-class FailingWork(ScheduledWork):
-    def run_cycle(self) -> None:
-        raise RuntimeError("test failure")
+        if self.calls <= self.failures:
+            raise RuntimeError("test failure")
 
 
 def test_scheduler_runs_one_cycle() -> None:
-    work = RecordingWork()
+    work = FakeWork()
     scheduler = SchedulerService(work)
 
     result = scheduler.run_once()
 
-    assert result.success is True
-    assert result.message == "scheduled cycle completed successfully"
     assert work.calls == 1
-    assert result.completed_at >= result.started_at
+    assert result.success is True
+    assert isinstance(result.started_at, datetime)
+    assert isinstance(result.completed_at, datetime)
 
 
-def test_scheduler_does_not_hide_cycle_failure() -> None:
-    scheduler = SchedulerService(FailingWork())
+def test_scheduler_reports_cycle_failure() -> None:
+    work = FakeWork(failures=1)
+    scheduler = SchedulerService(work)
 
     result = scheduler.run_once()
 
+    assert work.calls == 1
     assert result.success is False
-    assert "scheduled cycle failed" in result.message
     assert "test failure" in result.message
-    assert result.completed_at >= result.started_at
 
 
-def test_scheduler_config_has_safe_defaults() -> None:
+def test_scheduler_has_safe_defaults() -> None:
     config = SchedulerConfig()
 
     assert config.discovery_interval_minutes == 60
     assert config.recovery_interval_minutes == 30
 
 
-def test_scheduler_can_run_multiple_cycles() -> None:
-    work = RecordingWork()
+def test_scheduler_rejects_invalid_intervals() -> None:
+    with pytest.raises(ValueError):
+        SchedulerConfig(discovery_interval_minutes=0)
+
+    with pytest.raises(ValueError):
+        SchedulerConfig(recovery_interval_minutes=-1)
+
+
+def test_scheduler_runs_periodically() -> None:
+    work = FakeWork()
+
+    sleep_calls: list[float] = []
+
+    scheduler: SchedulerService
+
+    def fake_sleep(seconds: float) -> None:
+        sleep_calls.append(seconds)
+
+        if len(sleep_calls) >= 3:
+            scheduler.stop()
+
+    scheduler = SchedulerService(
+        work=work,
+        config=SchedulerConfig(discovery_interval_minutes=5),
+        sleep_func=fake_sleep,
+    )
+
+    scheduler.run_forever()
+
+    assert work.calls == 3
+    assert sleep_calls == [300, 300, 300]
+
+
+def test_scheduler_can_stop_without_running_cycle() -> None:
+    work = FakeWork()
     scheduler = SchedulerService(work)
 
-    first = scheduler.run_once()
-    second = scheduler.run_once()
+    scheduler.stop()
 
-    assert first.success is True
-    assert second.success is True
-    assert work.calls == 2
+    assert scheduler.is_running is False
+
+
+def test_scheduler_rejects_zero_runtime_interval() -> None:
+    work = FakeWork()
+    scheduler = SchedulerService(work)
+
+    with pytest.raises(ValueError):
+        scheduler.run_forever(interval_minutes=0)

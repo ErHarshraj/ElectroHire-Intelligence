@@ -183,13 +183,22 @@ def build_application_service(
 
 
 class ScheduledWorker(ScheduledWork):
-    """Adapt the worker cycle to the scheduler interface."""
+    """Run each scheduled cycle with a fresh database session."""
 
-    def __init__(self, cycle: WorkerCycle) -> None:
-        self.cycle = cycle
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
 
     def run_cycle(self) -> None:
-        self.cycle.run_cycle()
+        session = SessionLocal()
+
+        try:
+            cycle = build_worker_cycle(
+                settings=self.settings,
+                session=session,
+            )
+            cycle.run_cycle()
+        finally:
+            session.close()
 
 
 def build_worker_cycle(
@@ -264,42 +273,32 @@ def run_scheduled() -> None:
 
     create_tables()
 
-    session = SessionLocal()
+    scheduler_config = SchedulerConfig(
+        discovery_interval_minutes=settings.scheduler_discovery_interval_minutes,
+        recovery_interval_minutes=settings.scheduler_recovery_interval_minutes,
+    )
+
+    scheduler = SchedulerService(
+        work=ScheduledWorker(settings),
+        config=scheduler_config,
+    )
+
+    print("=" * 60)
+    print("ElectroHire Intelligence - Scheduled Worker")
+    print("=" * 60)
+    print(
+        "Discovery interval: "
+        f"{scheduler_config.discovery_interval_minutes} minutes"
+    )
+    print("Press Ctrl+C to stop.")
+    print()
 
     try:
-        cycle = build_worker_cycle(
-            settings=settings,
-            session=session,
-        )
-
-        scheduler_config = SchedulerConfig(
-            discovery_interval_minutes=settings.scheduler_discovery_interval_minutes,
-            recovery_interval_minutes=settings.scheduler_recovery_interval_minutes,
-        )
-
-        scheduler = SchedulerService(
-            work=ScheduledWorker(cycle),
-            config=scheduler_config,
-        )
-
-        print("=" * 60)
-        print("ElectroHire Intelligence - Scheduled Worker")
-        print("=" * 60)
-        print(
-            "Discovery interval: "
-            f"{scheduler_config.discovery_interval_minutes} minutes"
-        )
-        print("Press Ctrl+C to stop.")
+        scheduler.run_forever()
+    except KeyboardInterrupt:
         print()
-
-        try:
-            scheduler.run_forever()
-        except KeyboardInterrupt:
-            print()
-            print("Stopping scheduled worker...")
-            scheduler.stop()
-    finally:
-        session.close()
+        print("Stopping scheduled worker...")
+        scheduler.stop()
 
 
 if __name__ == "__main__":

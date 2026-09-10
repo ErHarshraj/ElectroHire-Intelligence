@@ -6,7 +6,12 @@ from apps.worker.main import process_source
 from packages.application.adapters.dry_run import DryRunApplicationAdapter
 from packages.application.application_service import ApplicationService
 from packages.application.discovery.target_discovery import ApplyTargetDiscovery
-from packages.application.models import ApplicationStatus
+from packages.application.models import (
+    ApplicationMethod,
+    ApplicationRequest,
+    ApplicationResult,
+    ApplicationStatus,
+)
 from packages.domain.job import Job
 from packages.job_sources.base import JobSource
 from packages.persistence.application_repository import (
@@ -183,6 +188,7 @@ def test_worker_prepares_browser_application() -> None:
         repository=job_repository,
         decision_repository=decision_repository,
         application_service=make_application_service(application_repository),
+        application_repository=application_repository,
         target_discovery=ApplyTargetDiscovery(),
     )
 
@@ -215,6 +221,7 @@ def test_worker_prepares_email_application() -> None:
         repository=job_repository,
         decision_repository=decision_repository,
         application_service=make_application_service(application_repository),
+        application_repository=application_repository,
         target_discovery=ApplyTargetDiscovery(),
     )
 
@@ -243,6 +250,7 @@ def test_worker_does_not_create_application_without_target() -> None:
         repository=job_repository,
         decision_repository=decision_repository,
         application_service=make_application_service(application_repository),
+        application_repository=application_repository,
         target_discovery=ApplyTargetDiscovery(),
     )
 
@@ -283,8 +291,100 @@ def test_worker_does_not_apply_alert_decision() -> None:
         repository=job_repository,
         decision_repository=decision_repository,
         application_service=make_application_service(application_repository),
+        application_repository=application_repository,
         target_discovery=ApplyTargetDiscovery(),
     )
 
     assert result == (1, 1, 0)
     assert application_repository.records == {}
+
+
+class RecordingApplicationService(ApplicationService):
+    """Application service that records whether execution was requested."""
+
+    def __init__(self, repository: ApplicationRepository) -> None:
+        adapter = DryRunApplicationAdapter()
+
+        super().__init__(
+            email_adapter=adapter,
+            browser_adapter=adapter,
+            repository=repository,
+        )
+
+        self.submit_calls = 0
+
+    def submit(
+        self,
+        request: ApplicationRequest,
+        job_id: int | None = None,
+    ) -> ApplicationResult:
+        self.submit_calls += 1
+        return super().submit(request, job_id=job_id)
+
+
+def test_execution_policy_blocks_already_submitted_application() -> None:
+    job = make_job(
+        source_job_id="ALREADY-SUBMITTED-001",
+        source_url="https://example.com/careers/hardware-design-engineer/apply",
+    )
+
+    job_repository = InMemoryJobRepository()
+    decision_repository = InMemoryDecisionRepository()
+    application_repository = FakeApplicationRepository()
+
+    application_repository.save(
+        ApplicationRecord(
+            job_id=1,
+            method=ApplicationMethod.BROWSER,
+            status=ApplicationStatus.SUBMITTED,
+            apply_url=str(job.source_url),
+        )
+    )
+
+    application_service = RecordingApplicationService(application_repository)
+
+    result = process_source(
+        source=SingleJobSource(job),
+        repository=job_repository,
+        decision_repository=decision_repository,
+        application_service=application_service,
+        application_repository=application_repository,
+        target_discovery=ApplyTargetDiscovery(),
+    )
+
+    assert result == (1, 1, 0)
+    assert application_service.submit_calls == 0
+
+
+def test_execution_policy_blocks_active_application_attempt() -> None:
+    job = make_job(
+        source_job_id="ACTIVE-ATTEMPT-001",
+        source_url="https://example.com/careers/hardware-design-engineer/apply",
+    )
+
+    job_repository = InMemoryJobRepository()
+    decision_repository = InMemoryDecisionRepository()
+    application_repository = FakeApplicationRepository()
+
+    application_repository.save(
+        ApplicationRecord(
+            job_id=1,
+            method=ApplicationMethod.BROWSER,
+            status=ApplicationStatus.PENDING,
+            apply_url=str(job.source_url),
+        )
+    )
+
+    application_service = RecordingApplicationService(application_repository)
+
+    result = process_source(
+        source=SingleJobSource(job),
+        repository=job_repository,
+        decision_repository=decision_repository,
+        application_service=application_service,
+        application_repository=application_repository,
+        target_discovery=ApplyTargetDiscovery(),
+    )
+
+    assert result == (1, 1, 0)
+    assert application_service.submit_calls == 0

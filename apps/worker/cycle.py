@@ -1,6 +1,10 @@
 from packages.application.application_service import ApplicationService
 from packages.application.discovery.target_discovery import ApplyTargetDiscovery
-from packages.application.models import ApplicationMethod, ApplicationRequest
+from packages.application.execution_policy import (
+    ApplicationExecutionAction,
+    ApplicationExecutionPolicy,
+)
+from packages.application.models import ApplicationMethod, ApplicationRequest, ApplicationStatus
 from packages.application.recovery import ApplicationRecoveryService
 from packages.application.recovery_executor import ApplicationRecoveryExecutor
 from packages.application.stats import ApplicationRunStats
@@ -25,6 +29,7 @@ def process_application(
     decision_action: DecisionAction,
     job_repository: JobRepository,
     application_service: ApplicationService,
+    application_repository: ApplicationRepository,
     target_discovery: ApplyTargetDiscovery,
     stats: ApplicationRunStats | None = None,
 ) -> str:
@@ -78,6 +83,42 @@ def process_application(
     if stats is not None:
         stats.record_target_found()
 
+    target_value = (
+        target.apply_url
+        if application_method == ApplicationMethod.BROWSER
+        else target.recruiter_email
+    )
+
+    latest_application = application_repository.get_latest(job_id)
+    active_statuses = {
+        ApplicationStatus.PENDING,
+        ApplicationStatus.IN_PROGRESS,
+        ApplicationStatus.PAUSED,
+    }
+
+    execution_policy = ApplicationExecutionPolicy()
+    policy_result = execution_policy.evaluate(
+        decision_action=decision_action,
+        application_method=application_method,
+        target_value=target_value,
+        already_submitted=application_repository.has_submitted_application(
+            job_id
+        ),
+        active_attempt=(
+            latest_application is not None
+            and latest_application.status in active_statuses
+        ),
+    )
+
+    if policy_result.action == ApplicationExecutionAction.BLOCK:
+        print(
+            f"Application: BLOCKED | "
+            f"Method: {application_method.value} | "
+            f"Job: {job.title!r} | "
+            f"Reason: {policy_result.reason}"
+        )
+        return "blocked"
+
     request = ApplicationRequest(
         source=job.source,
         source_job_id=job.source_job_id,
@@ -111,6 +152,7 @@ def process_source(
     repository: JobRepository,
     decision_repository: DecisionRepository,
     application_service: ApplicationService | None = None,
+    application_repository: ApplicationRepository | None = None,
     target_discovery: ApplyTargetDiscovery | None = None,
     stats: ApplicationRunStats | None = None,
 ) -> tuple[int, int, int]:
@@ -175,6 +217,7 @@ def process_source(
 
         if (
             application_service is not None
+            and application_repository is not None
             and target_discovery is not None
         ):
             process_application(
@@ -182,6 +225,7 @@ def process_source(
                 decision_action=decision_result.action,
                 job_repository=repository,
                 application_service=application_service,
+                application_repository=application_repository,
                 target_discovery=target_discovery,
                 stats=application_stats,
             )
@@ -296,6 +340,7 @@ class WorkerCycle:
                 repository=self.repository,
                 decision_repository=self.decision_repository,
                 application_service=self.application_service,
+                application_repository=self.application_repository,
                 target_discovery=self.target_discovery,
                 stats=application_stats,
             )

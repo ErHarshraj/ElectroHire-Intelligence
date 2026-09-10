@@ -265,3 +265,26 @@ def test_worker_does_not_create_application_when_application_infrastructure_is_d
     )
 
     assert result == (1, 1, 0)
+
+
+def test_worker_does_not_apply_alert_decision() -> None:
+    job = make_job(
+        source_job_id="ALERT-001",
+        title="Senior OpenBMC Firmware Engineer",
+        description="OpenBMC and embedded firmware development.",
+    )
+
+    job_repository = InMemoryJobRepository()
+    decision_repository = InMemoryDecisionRepository()
+    application_repository = FakeApplicationRepository()
+
+    result = process_source(
+        source=SingleJobSource(job),
+        repository=job_repository,
+        decision_repository=decision_repository,
+        application_service=make_application_service(application_repository),
+        target_discovery=ApplyTargetDiscovery(),
+    )
+
+    assert result == (1, 1, 0)
+    assert application_repository.records == {}

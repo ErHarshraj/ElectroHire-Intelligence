@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from sqlalchemy.orm import Session
+
 from apps.worker.cycle import WorkerCycle, process_source
 from packages.application.adapters.dry_run import DryRunApplicationAdapter
 from packages.application.adapters.email import EmailApplicationAdapter
@@ -25,13 +27,17 @@ from packages.persistence.sqlalchemy_decision_repository import (
 from packages.persistence.sqlalchemy_job_repository import (
     SQLAlchemyJobRepository,
 )
+from packages.scheduler.models import SchedulerConfig
+from packages.scheduler.service import ScheduledWork, SchedulerService
 
 __all__ = [
     "WorkerCycle",
     "process_source",
     "run_recovery_phase",
     "build_application_service",
+    "build_worker_cycle",
     "run",
+    "run_scheduled",
 ]
 
 
@@ -60,7 +66,7 @@ def run_recovery_phase(
 
     for candidate in candidates:
         try:
-            plan, result = recovery_executor.execute(candidate)
+            _, result = recovery_executor.execute(candidate)
 
             if result is None:
                 stats.recovery_skipped += 1
@@ -175,7 +181,54 @@ def build_application_service(
     )
 
 
+
+class ScheduledWorker(ScheduledWork):
+    """Adapt the worker cycle to the scheduler interface."""
+
+    def __init__(self, cycle: WorkerCycle) -> None:
+        self.cycle = cycle
+
+    def run_cycle(self) -> None:
+        self.cycle.run_cycle()
+
+
+def build_worker_cycle(
+    settings: Settings,
+    session: Session,
+) -> WorkerCycle:
+    """Build one worker cycle using the supplied database session."""
+
+    client = AdzunaClient(
+        app_id=settings.adzuna_app_id or "",
+        app_key=settings.adzuna_app_key or "",
+        country=settings.adzuna_country,
+    )
+
+    repository = SQLAlchemyJobRepository(session)
+    decision_repository = SQLAlchemyDecisionRepository(session)
+    application_repository = SQLAlchemyApplicationRepository(session)
+
+    application_service = build_application_service(
+        settings=settings,
+        application_repository=application_repository,
+    )
+
+    target_discovery = ApplyTargetDiscovery()
+
+    return WorkerCycle(
+        settings=settings,
+        client=client,
+        repository=repository,
+        decision_repository=decision_repository,
+        application_repository=application_repository,
+        application_service=application_service,
+        target_discovery=target_discovery,
+    )
+
+
 def run() -> None:
+    """Run one complete worker cycle."""
+
     settings = get_settings()
 
     if not settings.adzuna_app_id or not settings.adzuna_app_key:
@@ -189,35 +242,59 @@ def run() -> None:
     session = SessionLocal()
 
     try:
-        client = AdzunaClient(
-            app_id=settings.adzuna_app_id,
-            app_key=settings.adzuna_app_key,
-            country=settings.adzuna_country,
-        )
-
-        repository = SQLAlchemyJobRepository(session)
-        decision_repository = SQLAlchemyDecisionRepository(session)
-        application_repository = SQLAlchemyApplicationRepository(session)
-
-        application_service = build_application_service(
+        cycle = build_worker_cycle(
             settings=settings,
-            application_repository=application_repository,
+            session=session,
         )
-
-        target_discovery = ApplyTargetDiscovery()
-
-        cycle = WorkerCycle(
-            settings=settings,
-            client=client,
-            repository=repository,
-            decision_repository=decision_repository,
-            application_repository=application_repository,
-            application_service=application_service,
-            target_discovery=target_discovery,
-        )
-
         cycle.run_cycle()
+    finally:
+        session.close()
 
+
+def run_scheduled() -> None:
+    """Run the worker continuously at the configured discovery interval."""
+
+    settings = get_settings()
+
+    if not settings.adzuna_app_id or not settings.adzuna_app_key:
+        raise RuntimeError(
+            "Adzuna credentials are not configured. "
+            "Set ADZUNA_APP_ID and ADZUNA_APP_KEY in .env."
+        )
+
+    create_tables()
+
+    session = SessionLocal()
+
+    try:
+        cycle = build_worker_cycle(
+            settings=settings,
+            session=session,
+        )
+
+        scheduler_config = SchedulerConfig()
+
+        scheduler = SchedulerService(
+            work=ScheduledWorker(cycle),
+            config=scheduler_config,
+        )
+
+        print("=" * 60)
+        print("ElectroHire Intelligence - Scheduled Worker")
+        print("=" * 60)
+        print(
+            "Discovery interval: "
+            f"{scheduler_config.discovery_interval_minutes} minutes"
+        )
+        print("Press Ctrl+C to stop.")
+        print()
+
+        try:
+            scheduler.run_forever()
+        except KeyboardInterrupt:
+            print()
+            print("Stopping scheduled worker...")
+            scheduler.stop()
     finally:
         session.close()
 

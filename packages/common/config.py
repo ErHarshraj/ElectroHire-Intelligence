@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     llm_api_key: str | None = None
 
     email_enabled: bool = False
+    browser_enabled: bool = False
+    browser_headless: bool = True
+    browser_timeout_ms: int = 15000
+    browser_executable_path: str | None = None
     smtp_host: str | None = None
     smtp_port: int | None = None
     smtp_username: str | None = None

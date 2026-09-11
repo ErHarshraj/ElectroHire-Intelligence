@@ -47,3 +47,50 @@ def test_browser_adapter_does_not_submit() -> None:
     adapter = BrowserApplicationAdapter.__new__(BrowserApplicationAdapter)
 
     assert hasattr(adapter, "submit")
+
+
+def test_browser_adapter_inspects_local_application_form() -> None:
+    import functools
+    import threading
+    from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+    from pathlib import Path
+
+    fixture_directory = Path(__file__).parent / "fixtures"
+
+    handler = functools.partial(
+        SimpleHTTPRequestHandler,
+        directory=str(fixture_directory),
+    )
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/application_form.html"
+
+        adapter = BrowserApplicationAdapter(headless=True)
+
+        result = adapter.submit(
+            ApplicationRequest(
+                source="test",
+                source_job_id="local-form",
+                job_title="Hardware Engineer",
+                company="ElectroHire Test",
+                application_method=ApplicationMethod.BROWSER,
+                apply_url=url,
+            )
+        )
+
+        assert result.status == ApplicationStatus.PENDING
+        assert result.method == ApplicationMethod.BROWSER
+        assert "forms=1" in result.message
+        assert "inputs=4" in result.message
+        assert "textareas=1" in result.message
+        assert "selects=1" in result.message
+        assert "buttons=1" in result.message
+        assert "submission=disabled" in result.message
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)

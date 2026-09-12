@@ -190,3 +190,130 @@ Best regards,
     assert latest is not None
     assert latest.status == ApplicationStatus.SUBMITTED
     assert latest.method == ApplicationMethod.EMAIL
+
+
+def test_browser_application_persists_submission_and_blocks_resubmit(
+    tmp_path: Path,
+) -> None:
+    import functools
+    import threading
+    from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from packages.application.adapters.browser import BrowserApplicationAdapter
+    from packages.application.recovery import (
+        ApplicationRecoveryService,
+        RecoveryAction,
+    )
+    from packages.persistence.models import Base
+    from packages.persistence.sqlalchemy_application_repository import (
+        SQLAlchemyApplicationRepository,
+    )
+
+    fixture_directory = Path(__file__).parent / "fixtures"
+    resume_path = fixture_directory / "test_resume.pdf"
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    repository = SQLAlchemyApplicationRepository(Session(engine))
+
+    handler = functools.partial(
+        SimpleHTTPRequestHandler,
+        directory=str(fixture_directory),
+    )
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(
+        target=server.serve_forever,
+        daemon=True,
+    )
+    thread.start()
+
+    try:
+        application_url = (
+            f"http://127.0.0.1:{server.server_port}/"
+            "application_form.html"
+        )
+
+        candidate = CandidateProfile(
+            full_name="Harshraj Test",
+            email="harshraj.test@example.com",
+            phone="9876543210",
+            location="Indore, India",
+            resume_path=str(resume_path),
+            linkedin_url=None,
+            github_url=None,
+            portfolio_url="https://example.com",
+            education=[],
+            skills=[],
+            projects=[],
+            application_answers={
+                "experience_level": "fresher",
+            },
+        )
+
+        browser_adapter = BrowserApplicationAdapter(
+            candidate=candidate,
+            headless=True,
+        )
+
+        service = ApplicationService(
+            email_adapter=browser_adapter,
+            browser_adapter=browser_adapter,
+            repository=repository,
+        )
+
+        request = ApplicationRequest(
+            source="test",
+            source_job_id="browser-integration-001",
+            job_title="Hardware Engineer",
+            company="Example Electronics",
+            application_method=ApplicationMethod.BROWSER,
+            apply_url=application_url,
+        )
+
+        first_result = service.submit(
+            request=request,
+            job_id=9001,
+        )
+
+        assert first_result.status == ApplicationStatus.SUBMITTED
+        assert first_result.method == ApplicationMethod.BROWSER
+        assert first_result.external_reference is not None
+        assert "/application_success.html" in first_result.external_reference
+
+        latest = repository.get_latest(9001)
+
+        assert latest is not None
+        assert latest.status == ApplicationStatus.SUBMITTED
+        assert latest.method == ApplicationMethod.BROWSER
+        assert latest.submitted_at is not None
+        assert latest.external_reference is not None
+        assert "/application_success.html" in latest.external_reference
+
+        second_result = service.submit(
+            request=request,
+            job_id=9001,
+        )
+
+        assert second_result.status == ApplicationStatus.ALREADY_SUBMITTED
+        assert second_result.method == ApplicationMethod.BROWSER
+
+        recovery = ApplicationRecoveryService(repository)
+
+        report = recovery.inspect(9001)
+
+        assert report.status == ApplicationStatus.SUBMITTED
+        assert report.action == RecoveryAction.DO_NOT_RESUBMIT
+
+        retry_plan = recovery.build_retry_plan()
+
+        assert retry_plan == []
+
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)

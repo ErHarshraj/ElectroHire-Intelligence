@@ -3,6 +3,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from apps.worker.cycle import WorkerCycle, process_source
+from packages.application.adapters.browser import BrowserApplicationAdapter
 from packages.application.adapters.dry_run import DryRunApplicationAdapter
 from packages.application.adapters.email import EmailApplicationAdapter
 from packages.application.application_service import ApplicationService
@@ -86,10 +87,53 @@ def build_application_service(
 
     dry_run_adapter = DryRunApplicationAdapter()
 
+    if settings.browser_enabled:
+        if not settings.candidate_email:
+            raise RuntimeError(
+                "Browser applications are enabled but candidate_email is missing."
+            )
+
+        if not settings.candidate_phone:
+            raise RuntimeError(
+                "Browser applications are enabled but candidate_phone is missing."
+            )
+
+        if not settings.candidate_resume_path:
+            raise RuntimeError(
+                "Browser applications are enabled but candidate_resume_path is missing."
+            )
+
+        resume_path = Path(settings.candidate_resume_path)
+
+        if not resume_path.is_file():
+            raise RuntimeError(
+                f"Candidate resume not found: {resume_path.resolve()}"
+            )
+
+        candidate = CandidateProfile(
+            full_name=settings.candidate_name,
+            email=settings.candidate_email,
+            phone=settings.candidate_phone,
+            location=settings.candidate_location,
+            resume_path=str(resume_path),
+            linkedin_url=settings.candidate_linkedin_url,
+            github_url=settings.candidate_github_url,
+            portfolio_url=settings.candidate_portfolio_url,
+        )
+
+        browser_adapter = BrowserApplicationAdapter(
+            candidate=candidate,
+            headless=settings.browser_headless,
+            timeout_ms=settings.browser_timeout_ms,
+            executable_path=settings.browser_executable_path,
+        )
+    else:
+        browser_adapter = dry_run_adapter
+
     if not settings.email_enabled:
         return ApplicationService(
             email_adapter=dry_run_adapter,
-            browser_adapter=dry_run_adapter,
+            browser_adapter=browser_adapter,
             repository=application_repository,
         )
 
@@ -176,10 +220,9 @@ def build_application_service(
 
     return ApplicationService(
         email_adapter=email_adapter,
-        browser_adapter=dry_run_adapter,
+        browser_adapter=browser_adapter,
         repository=application_repository,
     )
-
 
 
 class ScheduledWorker(ScheduledWork):

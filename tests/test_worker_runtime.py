@@ -106,3 +106,100 @@ def test_scheduled_worker_uses_fresh_session_for_each_cycle(
     assert sessions[0] is not sessions[1]
     assert all(session.closed for session in sessions)
     assert all(cycle.run_count == 1 for cycle in cycles)
+
+
+def test_build_application_service_uses_dry_run_browser_by_default() -> None:
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from apps.worker.main import build_application_service
+    from packages.application.adapters.dry_run import DryRunApplicationAdapter
+    from packages.persistence.models import Base
+    from packages.persistence.sqlalchemy_application_repository import (
+        SQLAlchemyApplicationRepository,
+    )
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    repository = SQLAlchemyApplicationRepository(Session(engine))
+    service = build_application_service(
+        settings=Settings(browser_enabled=False),
+        application_repository=repository,
+    )
+
+    assert isinstance(service.browser_adapter, DryRunApplicationAdapter)
+
+
+def test_build_application_service_uses_browser_adapter_when_enabled(
+    tmp_path,
+) -> None:
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from apps.worker.main import build_application_service
+    from packages.application.adapters.browser import BrowserApplicationAdapter
+    from packages.persistence.models import Base
+    from packages.persistence.sqlalchemy_application_repository import (
+        SQLAlchemyApplicationRepository,
+    )
+
+    resume_path = tmp_path / "resume.pdf"
+    resume_path.write_bytes(b"%PDF-1.4 test resume")
+
+    settings = Settings(
+        browser_enabled=True,
+        candidate_email="harshraj.test@example.com",
+        candidate_phone="9876543210",
+        candidate_resume_path=str(resume_path),
+    )
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    repository = SQLAlchemyApplicationRepository(Session(engine))
+    service = build_application_service(
+        settings=settings,
+        application_repository=repository,
+    )
+
+    assert isinstance(service.browser_adapter, BrowserApplicationAdapter)
+    assert service.browser_adapter.candidate is not None
+    assert service.browser_adapter.candidate.email == (
+        "harshraj.test@example.com"
+    )
+    assert service.browser_adapter.candidate.phone == "9876543210"
+    assert service.browser_adapter.candidate.resume_path == str(resume_path)
+
+
+def test_build_application_service_rejects_missing_browser_resume(
+) -> None:
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from apps.worker.main import build_application_service
+    from packages.persistence.models import Base
+    from packages.persistence.sqlalchemy_application_repository import (
+        SQLAlchemyApplicationRepository,
+    )
+
+    settings = Settings(
+        browser_enabled=True,
+        candidate_email="harshraj.test@example.com",
+        candidate_phone="9876543210",
+        candidate_resume_path="/tmp/electrohire-missing-resume.pdf",
+    )
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    repository = SQLAlchemyApplicationRepository(Session(engine))
+
+    with pytest.raises(
+        RuntimeError,
+        match="Candidate resume not found",
+    ):
+        build_application_service(
+            settings=settings,
+            application_repository=repository,
+        )

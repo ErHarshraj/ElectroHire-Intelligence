@@ -43,12 +43,17 @@ class BrowserApplicationPreview:
 class BrowserFormValidator:
     """Validate a prepared browser application without submitting it."""
 
+    NON_DATA_KINDS = {
+        BrowserFieldKind.COVER_LETTER,
+        BrowserFieldKind.SUBMIT,
+    }
+
     def validate(
         self,
         page: Page,
         mappings: list[BrowserFieldMapping],
     ) -> BrowserApplicationPreview:
-        """Validate mapped fields and required form controls."""
+        """Validate mapped candidate fields and required form controls."""
 
         fields = [
             self._validate_mapping(page, mapping)
@@ -81,20 +86,22 @@ class BrowserFormValidator:
         classification = mapping.field
         kind = classification.kind
 
+        # These are controls/content handled by another stage.
+        # They are not candidate-data validation failures.
         if kind == BrowserFieldKind.SUBMIT:
             return BrowserFieldValidation(
                 field=classification,
                 value=None,
-                valid=False,
-                message="submit control must not be included in application data",
+                valid=True,
+                message="submit control is handled by submission executor",
             )
 
         if kind == BrowserFieldKind.COVER_LETTER:
             return BrowserFieldValidation(
                 field=classification,
                 value=None,
-                valid=False,
-                message="cover letter requires generated application content",
+                valid=True,
+                message="cover letter is optional and not generated automatically",
             )
 
         if kind == BrowserFieldKind.UNKNOWN:
@@ -245,11 +252,12 @@ class BrowserFormValidator:
         page: Page,
         mappings: list[BrowserFieldMapping],
     ) -> list[str]:
-        """Find required controls that are absent from the mapping."""
+        """Find required candidate-data controls absent from the mapping."""
 
         mapped_keys = {
             BrowserFormValidator._field_key(mapping.field)
             for mapping in mappings
+            if mapping.field.kind not in BrowserFormValidator.NON_DATA_KINDS
         }
 
         issues: list[str] = []
@@ -259,7 +267,9 @@ class BrowserFormValidator:
         ).all()
 
         for control in controls:
-            element = control.evaluate("element => element.tagName.toLowerCase()")
+            element = control.evaluate(
+                "element => element.tagName.toLowerCase()"
+            )
             field_id = control.get_attribute("id")
             name = control.get_attribute("name")
 
@@ -287,6 +297,7 @@ class BrowserFormValidator:
         classification: BrowserFieldClassification,
     ) -> tuple[str, str | None, str | None]:
         field = classification.field
+
         return (
             field.element,
             field.field_id,
@@ -308,13 +319,17 @@ class BrowserFormValidator:
 
             if label.count() == 1:
                 text = label.inner_text().strip()
+
                 if text:
                     return text
 
-        parent_label = control.locator("xpath=ancestor::label[1]")
+        parent_label = control.locator(
+            "xpath=ancestor::label[1]"
+        )
 
         if parent_label.count() == 1:
             text = parent_label.inner_text().strip()
+
             if text:
                 return text
 

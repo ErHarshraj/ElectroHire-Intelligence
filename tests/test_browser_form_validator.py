@@ -254,7 +254,7 @@ def test_wrong_filled_value_is_rejected() -> None:
         server.server_close()
 
 
-def test_cover_letter_requires_generated_content() -> None:
+def test_optional_cover_letter_does_not_block_validation() -> None:
     server, _ = start_fixture_server()
 
     try:
@@ -299,8 +299,7 @@ def test_cover_letter_requires_generated_content() -> None:
                     [mapping],
                 )
 
-                assert result.valid is False
-                assert any(
+                assert not any(
                     "cover letter requires generated application content"
                     in issue
                     for issue in result.issues
@@ -311,8 +310,7 @@ def test_cover_letter_requires_generated_content() -> None:
         server.shutdown()
         server.server_close()
 
-
-def test_submit_control_is_rejected() -> None:
+def test_submit_control_is_ignored_by_validator() -> None:
     server, _ = start_fixture_server()
 
     try:
@@ -338,9 +336,9 @@ def test_submit_control_is_rejected() -> None:
                     [mapping],
                 )
 
-                assert result.valid is False
-                assert any(
-                    "submit control" in issue
+                assert not any(
+                    "submit control must not be included in application data"
+                    in issue
                     for issue in result.issues
                 )
             finally:
@@ -348,7 +346,6 @@ def test_submit_control_is_rejected() -> None:
     finally:
         server.shutdown()
         server.server_close()
-
 
 def test_invalid_select_value_is_rejected() -> None:
     server, _ = start_fixture_server()

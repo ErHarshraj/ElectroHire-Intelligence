@@ -55,8 +55,9 @@ def test_browser_adapter_does_not_submit() -> None:
     assert hasattr(adapter, "submit")
 
 
-def test_browser_adapter_inspects_local_application_form() -> None:
+def test_browser_adapter_submits_local_application_form() -> None:
     fixture_directory = Path(__file__).parent / "fixtures"
+    resume_path = fixture_directory / "test_resume.pdf"
 
     handler = functools.partial(
         SimpleHTTPRequestHandler,
@@ -76,7 +77,29 @@ def test_browser_adapter_inspects_local_application_form() -> None:
             "/application_form.html"
         )
 
-        adapter = BrowserApplicationAdapter(headless=True)
+        from packages.application.profile import CandidateProfile
+
+        candidate = CandidateProfile(
+            full_name="Harshraj Test",
+            email="harshraj.test@example.com",
+            phone="9876543210",
+            location="Indore, India",
+            resume_path=str(resume_path),
+            linkedin_url=None,
+            github_url=None,
+            portfolio_url="https://example.com",
+            education=[],
+            skills=[],
+            projects=[],
+            application_answers={
+                "experience_level": "fresher",
+            },
+        )
+
+        adapter = BrowserApplicationAdapter(
+            candidate=candidate,
+            headless=True,
+        )
 
         result = adapter.submit(
             ApplicationRequest(
@@ -89,14 +112,12 @@ def test_browser_adapter_inspects_local_application_form() -> None:
             )
         )
 
-        assert result.status == ApplicationStatus.PENDING
+        assert result.status == ApplicationStatus.SUBMITTED
         assert result.method == ApplicationMethod.BROWSER
-        assert "forms=1" in result.message
-        assert "inputs=4" in result.message
-        assert "textareas=1" in result.message
-        assert "selects=1" in result.message
-        assert "buttons=1" in result.message
-        assert "submission=disabled" in result.message
+        assert result.external_reference is not None
+        assert "/application_success.html" in result.external_reference
+        assert "submission confirmed" in result.message
+
     finally:
         server.shutdown()
         server.server_close()

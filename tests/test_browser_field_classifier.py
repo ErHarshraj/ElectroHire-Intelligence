@@ -170,3 +170,137 @@ def test_submit_button_is_classified_from_label() -> None:
 
     assert result.kind == BrowserFieldKind.SUBMIT
     assert result.confidence == 0.85
+
+
+def test_username_is_not_classified_as_full_name() -> None:
+    classifier = BrowserFieldClassifier()
+
+    field = make_field(
+        name="username",
+        field_id="username",
+        label="Username",
+    )
+
+    result = classifier.classify(field)
+
+    assert result.kind == BrowserFieldKind.UNKNOWN
+    assert result.confidence == 0.0
+
+
+def test_upload_document_is_not_classified_as_resume() -> None:
+    classifier = BrowserFieldClassifier()
+
+    field = make_field(
+        field_type="file",
+        name="upload_document",
+        field_id="document",
+        label="Upload Document",
+    )
+
+    result = classifier.classify(field)
+
+    assert result.kind == BrowserFieldKind.UNKNOWN
+    assert result.confidence == 0.0
+
+
+def test_cv_upload_is_classified_as_resume() -> None:
+    classifier = BrowserFieldClassifier()
+
+    field = make_field(
+        field_type="file",
+        name="cv_upload",
+        label="Upload CV",
+    )
+
+    result = classifier.classify(field)
+
+    assert result.kind == BrowserFieldKind.RESUME
+    assert result.confidence == 1.0
+
+
+def test_candidate_name_is_classified_as_full_name() -> None:
+    classifier = BrowserFieldClassifier()
+
+    field = make_field(
+        name="candidate_name",
+        label="Candidate Name",
+    )
+
+    result = classifier.classify(field)
+
+    assert result.kind == BrowserFieldKind.FULL_NAME
+    assert result.confidence == 0.90
+
+
+def test_contact_field_is_not_guessed() -> None:
+    classifier = BrowserFieldClassifier()
+
+    field = make_field(
+        name="contact",
+        field_id="contact",
+        label="Contact",
+    )
+
+    result = classifier.classify(field)
+
+    assert result.kind == BrowserFieldKind.UNKNOWN
+    assert result.confidence == 0.0
+
+
+def test_mobile_number_is_classified_as_phone() -> None:
+    classifier = BrowserFieldClassifier()
+
+    field = make_field(
+        name="mobile_number",
+        label="Mobile Number",
+    )
+
+    result = classifier.classify(field)
+
+    assert result.kind == BrowserFieldKind.PHONE
+    assert result.confidence == 0.95
+
+
+def test_cover_letter_is_classified() -> None:
+    classifier = BrowserFieldClassifier()
+
+    field = make_field(
+        element="textarea",
+        name="cover_letter",
+        label="Cover Letter",
+    )
+
+    result = classifier.classify(field)
+
+    assert result.kind == BrowserFieldKind.COVER_LETTER
+    assert result.confidence == 0.95
+
+
+def test_experience_level_is_classified() -> None:
+    classifier = BrowserFieldClassifier()
+
+    field = make_field(
+        element="select",
+        name="experience_level",
+        label="Experience Level",
+    )
+
+    result = classifier.classify(field)
+
+    assert result.kind == BrowserFieldKind.EXPERIENCE_LEVEL
+    assert result.confidence == 0.90
+
+
+def test_name_substring_inside_unrelated_field_is_not_enough() -> None:
+    classifier = BrowserFieldClassifier()
+
+    field = make_field(
+        name="username",
+        field_id="user-name",
+        label="User Name",
+    )
+
+    result = classifier.classify(field)
+
+    assert result.kind == BrowserFieldKind.UNKNOWN
+    assert result.confidence == 0.0

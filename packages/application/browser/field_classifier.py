@@ -9,6 +9,7 @@ It does not fill fields and does not submit forms.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import Enum
 
@@ -50,43 +51,65 @@ class BrowserFieldClassifier:
     - label
     - autocomplete
     - placeholder
+
+    The classifier intentionally prefers UNKNOWN over an unsafe guess.
     """
 
-    _NAME_KEYS = (
+    _NAME_PHRASES = (
         "full name",
-        "fullname",
         "full_name",
+        "fullname",
         "candidate name",
         "candidate_name",
         "applicant name",
         "applicant_name",
-        "name",
     )
 
-    _EMAIL_KEYS = (
+    _NAME_EXACT = {
+        "name",
+        "candidate",
+        "applicant",
+    }
+
+    _EMAIL_PHRASES = (
         "email",
         "e-mail",
-        "mail",
+        "email address",
+        "email_address",
     )
 
-    _PHONE_KEYS = (
+    _PHONE_PHRASES = (
         "phone",
         "telephone",
-        "tel",
         "mobile",
         "mobile number",
         "mobile_number",
+        "phone number",
+        "phone_number",
+        "telephone number",
+        "telephone_number",
         "contact number",
         "contact_number",
     )
 
-    _RESUME_KEYS = (
+    _PHONE_EXACT = {
+        "tel",
+        "phone",
+        "mobile",
+        "telephone",
+    }
+
+    _RESUME_PHRASES = (
         "resume",
         "cv",
         "curriculum vitae",
+        "resume upload",
+        "resume_upload",
+        "cv upload",
+        "cv_upload",
     )
 
-    _COVER_LETTER_KEYS = (
+    _COVER_LETTER_PHRASES = (
         "cover letter",
         "cover_letter",
         "coverletter",
@@ -94,7 +117,7 @@ class BrowserFieldClassifier:
         "motivation_letter",
     )
 
-    _EXPERIENCE_KEYS = (
+    _EXPERIENCE_PHRASES = (
         "experience",
         "experience level",
         "experience_level",
@@ -118,7 +141,7 @@ class BrowserFieldClassifier:
                     reason="button has type=submit",
                 )
 
-            if self._contains_any(
+            if self._contains_phrase(
                 field.label,
                 ("submit", "apply", "send application"),
             ):
@@ -137,12 +160,12 @@ class BrowserFieldClassifier:
             )
 
         if field.element == "input":
-            input_type = field.field_type.lower()
+            input_type = field.field_type.lower().strip()
 
             if input_type == "file":
-                if self._contains_any(
-                    self._combined_text(field),
-                    self._RESUME_KEYS,
+                if self._contains_any_metadata(
+                    field,
+                    self._RESUME_PHRASES,
                 ):
                     return BrowserFieldClassification(
                         field=field,
@@ -174,9 +197,7 @@ class BrowserFieldClassifier:
                     reason="input type=tel",
                 )
 
-        text = self._combined_text(field)
-
-        if self._contains_any(text, self._EMAIL_KEYS):
+        if self._contains_any_metadata(field, self._EMAIL_PHRASES):
             return BrowserFieldClassification(
                 field=field,
                 kind=BrowserFieldKind.EMAIL,
@@ -184,7 +205,7 @@ class BrowserFieldClassifier:
                 reason="field metadata identifies email",
             )
 
-        if self._contains_any(text, self._PHONE_KEYS):
+        if self._contains_any_metadata(field, self._PHONE_PHRASES):
             return BrowserFieldClassification(
                 field=field,
                 kind=BrowserFieldKind.PHONE,
@@ -192,7 +213,7 @@ class BrowserFieldClassifier:
                 reason="field metadata identifies phone",
             )
 
-        if self._contains_any(text, self._RESUME_KEYS):
+        if self._contains_any_metadata(field, self._RESUME_PHRASES):
             return BrowserFieldClassification(
                 field=field,
                 kind=BrowserFieldKind.RESUME,
@@ -200,7 +221,10 @@ class BrowserFieldClassifier:
                 reason="field metadata identifies resume/CV",
             )
 
-        if self._contains_any(text, self._COVER_LETTER_KEYS):
+        if self._contains_any_metadata(
+            field,
+            self._COVER_LETTER_PHRASES,
+        ):
             return BrowserFieldClassification(
                 field=field,
                 kind=BrowserFieldKind.COVER_LETTER,
@@ -208,7 +232,10 @@ class BrowserFieldClassifier:
                 reason="field metadata identifies cover letter",
             )
 
-        if self._contains_any(text, self._EXPERIENCE_KEYS):
+        if self._contains_any_metadata(
+            field,
+            self._EXPERIENCE_PHRASES,
+        ):
             return BrowserFieldClassification(
                 field=field,
                 kind=BrowserFieldKind.EXPERIENCE_LEVEL,
@@ -216,7 +243,7 @@ class BrowserFieldClassifier:
                 reason="field metadata identifies experience",
             )
 
-        if self._contains_any(text, self._NAME_KEYS):
+        if self._has_name_signal(field):
             return BrowserFieldClassification(
                 field=field,
                 kind=BrowserFieldKind.FULL_NAME,
@@ -239,9 +266,45 @@ class BrowserFieldClassifier:
 
         return [self.classify(field) for field in fields]
 
+    @classmethod
+    def _has_name_signal(cls, field: BrowserField) -> bool:
+        """Return whether metadata contains a safe name-field signal."""
+
+        metadata = cls._metadata_values(field)
+
+        for value in metadata:
+            normalized = cls._normalize(value)
+
+            if normalized in cls._NAME_EXACT:
+                return True
+
+            if cls._contains_phrase(
+                normalized,
+                cls._NAME_PHRASES,
+            ):
+                return True
+
+        return False
+
+    @classmethod
+    def _contains_any_metadata(
+        cls,
+        field: BrowserField,
+        phrases: tuple[str, ...],
+    ) -> bool:
+        """Return True when any field metadata matches a known phrase."""
+
+        for value in cls._metadata_values(field):
+            normalized = cls._normalize(value)
+
+            if cls._contains_phrase(normalized, phrases):
+                return True
+
+        return False
+
     @staticmethod
-    def _combined_text(field: BrowserField) -> str:
-        """Combine searchable field metadata into normalized text."""
+    def _metadata_values(field: BrowserField) -> tuple[str, ...]:
+        """Return searchable field metadata."""
 
         values = (
             field.name,
@@ -249,28 +312,44 @@ class BrowserFieldClassifier:
             field.label,
             field.autocomplete,
             field.placeholder,
-            field.field_type,
         )
 
-        return " ".join(
-            value.strip().lower()
+        return tuple(
+            value.strip()
             for value in values
-            if value
+            if value and value.strip()
         )
 
     @staticmethod
-    def _contains_any(
+    def _normalize(value: str) -> str:
+        """Normalize HTML metadata for deterministic comparison."""
+
+        value = value.strip().lower()
+        value = value.replace("-", " ")
+        value = value.replace("_", " ")
+        value = re.sub(r"\s+", " ", value)
+
+        return value
+
+    @staticmethod
+    def _contains_phrase(
         text: str | None,
-        keys: tuple[str, ...],
+        phrases: tuple[str, ...],
     ) -> bool:
-        """Return True when normalized text contains one of the supplied keys."""
+        """Return True when text contains a complete known phrase."""
 
         if not text:
             return False
 
-        normalized = text.strip().lower()
+        normalized_text = BrowserFieldClassifier._normalize(text)
 
-        return any(
-            key in normalized
-            for key in keys
-        )
+        for phrase in phrases:
+            normalized_phrase = BrowserFieldClassifier._normalize(phrase)
+
+            if (
+                normalized_text == normalized_phrase
+                or f" {normalized_phrase} " in f" {normalized_text} "
+            ):
+                return True
+
+        return False

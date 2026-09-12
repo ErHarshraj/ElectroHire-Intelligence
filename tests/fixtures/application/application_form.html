@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ElectroHire Test Application</title>
+</head>
+<body>
+    <main>
+        <h1>Hardware Engineer Application</h1>
+
+        <form id="application-form" action="/application_success.html" method="get">
+            <label for="name">Full Name</label>
+            <input
+                id="name"
+                name="name"
+                type="text"
+                autocomplete="name"
+                required
+            >
+
+            <label for="email">Email</label>
+            <input
+                id="email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                required
+            >
+
+            <label for="phone">Phone</label>
+            <input
+                id="phone"
+                name="phone"
+                type="tel"
+                autocomplete="tel"
+            >
+
+            <label for="resume">Resume</label>
+            <input
+                id="resume"
+                name="resume"
+                type="file"
+                accept=".pdf"
+                required
+            >
+
+            <label for="cover-letter">Cover Letter</label>
+            <textarea
+                id="cover-letter"
+                name="cover_letter"
+            ></textarea>
+
+            <label for="experience">Experience Level</label>
+            <select id="experience" name="experience">
+                <option value="">Select</option>
+                <option value="fresher">Fresher</option>
+                <option value="junior">Junior</option>
+            </select>
+
+            <button type="submit">Submit Application</button>
+        </form>
+    </main>
+</body>
+</html>

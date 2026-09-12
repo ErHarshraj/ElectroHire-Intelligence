@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from pathlib import Path
 
 from pydantic import HttpUrl
 
@@ -388,3 +389,118 @@ def test_execution_policy_blocks_active_application_attempt() -> None:
 
     assert result == (1, 1, 0)
     assert application_service.submit_calls == 0
+
+
+
+
+
+def test_worker_executes_browser_application_end_to_end() -> None:
+    import functools
+    import threading
+    from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from packages.application.adapters.browser import BrowserApplicationAdapter
+    from packages.application.application_service import ApplicationService
+    from packages.application.profile import CandidateProfile
+    from packages.persistence.models import Base
+    from packages.persistence.sqlalchemy_application_repository import (
+        SQLAlchemyApplicationRepository,
+    )
+
+    fixture_directory = Path(__file__).parent / "fixtures"
+    resume_path = fixture_directory / "test_resume.pdf"
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    session = Session(engine)
+    application_repository = SQLAlchemyApplicationRepository(session)
+
+    handler = functools.partial(
+        SimpleHTTPRequestHandler,
+        directory=str(fixture_directory),
+    )
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(
+        target=server.serve_forever,
+        daemon=True,
+    )
+    thread.start()
+
+    try:
+        application_url = (
+            f"http://127.0.0.1:{server.server_port}/"
+            "application/application_form.html"
+        )
+
+        job = make_job(
+            source_job_id="BROWSER-E2E-001",
+            source_url=application_url,
+            description="Design hardware and PCB systems.",
+        )
+
+        job_repository = InMemoryJobRepository()
+        decision_repository = InMemoryDecisionRepository()
+
+        candidate = CandidateProfile(
+            full_name="Harshraj Test",
+            email="harshraj.test@example.com",
+            phone="9876543210",
+            location="Indore, India",
+            resume_path=str(resume_path),
+            linkedin_url=None,
+            github_url=None,
+            portfolio_url="https://example.com",
+            education=[],
+            skills=[],
+            projects=[],
+            application_answers={
+                "experience_level": "fresher",
+            },
+        )
+
+        browser_adapter = BrowserApplicationAdapter(
+            candidate=candidate,
+            headless=True,
+        )
+
+        application_service = ApplicationService(
+            email_adapter=browser_adapter,
+            browser_adapter=browser_adapter,
+            repository=application_repository,
+        )
+
+        result = process_source(
+            source=SingleJobSource(job),
+            repository=job_repository,
+            decision_repository=decision_repository,
+            application_service=application_service,
+            application_repository=application_repository,
+            target_discovery=ApplyTargetDiscovery(),
+        )
+
+        assert result == (1, 1, 0)
+
+        job_id = job_repository.get_id_by_source_job_id(
+            source="test",
+            source_job_id="BROWSER-E2E-001",
+        )
+        assert job_id is not None
+
+        application = application_repository.get_latest(job_id)
+        assert application is not None
+        assert application.status == ApplicationStatus.SUBMITTED
+        assert application.method == ApplicationMethod.BROWSER
+        assert application.submitted_at is not None
+        assert application.external_reference is not None
+        assert "/application_success.html" in application.external_reference
+
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+        session.close()

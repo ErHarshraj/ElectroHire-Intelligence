@@ -40,6 +40,7 @@ def make_request() -> ApplicationRequest:
         company="Example Electronics",
         application_method=ApplicationMethod.EMAIL,
         recruiter_email="careers@example.com",
+        submission_authorized=True,
     )
 
 

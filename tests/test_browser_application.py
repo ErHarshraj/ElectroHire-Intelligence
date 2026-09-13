@@ -99,7 +99,6 @@ def test_browser_adapter_submits_local_application_form() -> None:
         adapter = BrowserApplicationAdapter(
             candidate=candidate,
             headless=True,
-            approved=True,
         )
 
         result = adapter.submit(
@@ -110,6 +109,7 @@ def test_browser_adapter_submits_local_application_form() -> None:
                 company="ElectroHire Test",
                 application_method=ApplicationMethod.BROWSER,
                 apply_url=url,
+                submission_authorized=True,
             )
         )
 

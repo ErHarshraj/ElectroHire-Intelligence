@@ -159,6 +159,7 @@ class ApplicationRecoveryExecutor:
             or ApplicationMethod(candidate.method),
             apply_url=plan.apply_url,
             recruiter_email=plan.recruiter_email,
+            submission_authorized=True,
         )
 
         result = self.application_service.submit(

@@ -68,14 +68,11 @@ class BrowserApplicationAdapter(ApplicationAdapter):
         headless: bool = True,
         timeout_ms: int = 15000,
         executable_path: str | None = None,
-        approved: bool = False,
     ) -> None:
         self.candidate = candidate
         self.headless = headless
         self.timeout_ms = timeout_ms
         self.executable_path = executable_path or self._find_chromium()
-        self.approved = approved
-
         self.inspector = BrowserFieldInspector()
         self.classifier = BrowserFieldClassifier()
         self.mapper = BrowserFieldMapper()
@@ -234,7 +231,7 @@ class BrowserApplicationAdapter(ApplicationAdapter):
                     preview=full_preview,
                     fields=classifications,
                     submit_control_count=submit_control_count,
-                    approved=self.approved,
+                    submission_authorized=request.submission_authorized,
                 )
 
                 if not safety.allowed:

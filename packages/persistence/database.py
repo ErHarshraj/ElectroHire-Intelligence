@@ -3,7 +3,10 @@ from collections.abc import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from packages.persistence.models import Base
+from packages.persistence.models import (
+    ApplicationApprovalModel,  # noqa: F401
+    Base,
+)
 
 DATABASE_URL = "sqlite:///./electrohire.db"
 

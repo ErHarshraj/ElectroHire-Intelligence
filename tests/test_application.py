@@ -150,6 +150,7 @@ def make_request(
         application_method=method,
         apply_url="https://example.com/careers/apply",
         recruiter_email="careers@example.com",
+        submission_authorized=True,
     )
 
 

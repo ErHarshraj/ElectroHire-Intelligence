@@ -100,3 +100,50 @@ def test_list_jobs_returns_relevance_information() -> None:
     assert job["relevance"]["is_relevant"] is True
     assert job["relevance"]["score"] > 0
     assert "title:hardware design engineer" in job["relevance"]["reasons"]
+
+
+def test_application_approval_endpoints() -> None:
+    from packages.application.approval import ApplicationApprovalService
+    from packages.application.models import (
+        ApplicationApprovalRequest,
+        ApplicationApprovalStatus,
+        ApplicationMethod,
+    )
+    from packages.persistence.sqlalchemy_application_approval_repository import (
+        SQLAlchemyApplicationApprovalRepository,
+    )
+
+    session = TestSessionLocal()
+
+    try:
+        service = ApplicationApprovalService(
+            SQLAlchemyApplicationApprovalRepository(session)
+        )
+        approval = service.request(
+            ApplicationApprovalRequest(
+                source="test",
+                source_job_id="api-approval-001",
+                job_title="Hardware Design Engineer",
+                company="Example Electronics",
+                application_method=ApplicationMethod.EMAIL,
+                recruiter_email="careers@example.com",
+                reason="explicit approval required",
+            ),
+            job_id=999,
+        )
+        approval_id = approval.id
+    finally:
+        session.close()
+
+    response = client.get("/applications/approvals")
+    assert response.status_code == 200
+    assert response.json()[0]["id"] == approval_id
+    assert response.json()[0]["status"] == ApplicationApprovalStatus.PENDING.value
+
+    response = client.post(f"/applications/approvals/{approval_id}/approve")
+    assert response.status_code == 200
+    assert response.json()["status"] == ApplicationApprovalStatus.APPROVED.value
+
+    response = client.get("/applications/approvals")
+    assert response.status_code == 200
+    assert response.json() == []

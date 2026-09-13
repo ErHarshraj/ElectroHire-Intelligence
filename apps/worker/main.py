@@ -3,10 +3,12 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from apps.worker.cycle import WorkerCycle, process_source
+from packages.application.adapters.base import ApplicationAdapter
 from packages.application.adapters.browser import BrowserApplicationAdapter
 from packages.application.adapters.dry_run import DryRunApplicationAdapter
 from packages.application.adapters.email import EmailApplicationAdapter
 from packages.application.application_service import ApplicationService
+from packages.application.approval import ApplicationApprovalService
 from packages.application.discovery.target_discovery import ApplyTargetDiscovery
 from packages.application.email.builder import EmailBuilder
 from packages.application.email.smtp import SMTPEmailTransport
@@ -19,6 +21,9 @@ from packages.job_sources.adzuna.client import AdzunaClient
 from packages.persistence.application_repository import ApplicationRepository
 from packages.persistence.database import SessionLocal, create_tables
 from packages.persistence.job_repository import JobRepository
+from packages.persistence.sqlalchemy_application_approval_repository import (
+    SQLAlchemyApplicationApprovalRepository,
+)
 from packages.persistence.sqlalchemy_application_repository import (
     SQLAlchemyApplicationRepository,
 )
@@ -121,7 +126,7 @@ def build_application_service(
             portfolio_url=settings.candidate_portfolio_url,
         )
 
-        browser_adapter = BrowserApplicationAdapter(
+        browser_adapter: ApplicationAdapter = BrowserApplicationAdapter(
             candidate=candidate,
             headless=settings.browser_headless,
             timeout_ms=settings.browser_timeout_ms,
@@ -259,6 +264,8 @@ def build_worker_cycle(
     repository = SQLAlchemyJobRepository(session)
     decision_repository = SQLAlchemyDecisionRepository(session)
     application_repository = SQLAlchemyApplicationRepository(session)
+    approval_repository = SQLAlchemyApplicationApprovalRepository(session)
+    approval_service = ApplicationApprovalService(approval_repository)
 
     application_service = build_application_service(
         settings=settings,
@@ -275,6 +282,7 @@ def build_worker_cycle(
         application_repository=application_repository,
         application_service=application_service,
         target_discovery=target_discovery,
+        approval_service=approval_service,
     )
 
 

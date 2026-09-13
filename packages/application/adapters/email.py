@@ -56,6 +56,13 @@ class EmailApplicationAdapter(ApplicationAdapter):
                 message=f"resume file not found: {resume_path}",
             )
 
+        if not request.submission_authorized:
+            return ApplicationResult(
+                status=ApplicationStatus.PAUSED,
+                method=request.application_method,
+                message="application email submission is not authorized by execution policy",
+            )
+
         built_email = self.builder.build(request, self.candidate)
 
         message = EmailMessage()

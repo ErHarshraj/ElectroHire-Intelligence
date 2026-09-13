@@ -2,7 +2,10 @@ from dataclasses import dataclass
 from enum import Enum
 from urllib.parse import urlparse
 
-from packages.application.models import ApplicationMethod
+from packages.application.models import (
+    ApplicationExecutionMode,
+    ApplicationMethod,
+)
 from packages.matching.decision import DecisionAction
 
 
@@ -27,6 +30,7 @@ class ApplicationExecutionPolicy:
         target_value: str | None,
         already_submitted: bool,
         active_attempt: bool,
+        execution_mode: ApplicationExecutionMode = ApplicationExecutionMode.DRY_RUN,
     ) -> ApplicationExecutionResult:
         if decision_action != DecisionAction.APPLY:
             return ApplicationExecutionResult(
@@ -72,9 +76,27 @@ class ApplicationExecutionPolicy:
                 reason="application method is invalid",
             )
 
+        if execution_mode == ApplicationExecutionMode.DRY_RUN:
+            return ApplicationExecutionResult(
+                action=ApplicationExecutionAction.BLOCK,
+                reason="dry-run execution mode does not permit submission",
+            )
+
+        if execution_mode == ApplicationExecutionMode.APPROVAL_REQUIRED:
+            return ApplicationExecutionResult(
+                action=ApplicationExecutionAction.BLOCK,
+                reason="explicit application approval is required before submission",
+            )
+
+        if execution_mode != ApplicationExecutionMode.FULL_AUTO:
+            return ApplicationExecutionResult(
+                action=ApplicationExecutionAction.BLOCK,
+                reason="application execution mode is invalid",
+            )
+
         return ApplicationExecutionResult(
             action=ApplicationExecutionAction.ALLOW,
-            reason="application is eligible for execution",
+            reason="application is eligible for full automatic execution",
         )
 
     @staticmethod

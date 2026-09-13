@@ -1,10 +1,17 @@
 from packages.application.application_service import ApplicationService
+from packages.application.approval import ApplicationApprovalService
 from packages.application.discovery.target_discovery import ApplyTargetDiscovery
 from packages.application.execution_policy import (
     ApplicationExecutionAction,
     ApplicationExecutionPolicy,
 )
-from packages.application.models import ApplicationMethod, ApplicationRequest, ApplicationStatus
+from packages.application.models import (
+    ApplicationApprovalRequest,
+    ApplicationExecutionMode,
+    ApplicationMethod,
+    ApplicationRequest,
+    ApplicationStatus,
+)
 from packages.application.recovery import ApplicationRecoveryService
 from packages.application.recovery_executor import ApplicationRecoveryExecutor
 from packages.application.stats import ApplicationRunStats
@@ -32,6 +39,8 @@ def process_application(
     application_repository: ApplicationRepository,
     target_discovery: ApplyTargetDiscovery,
     stats: ApplicationRunStats | None = None,
+    approval_service: ApplicationApprovalService | None = None,
+    execution_mode: ApplicationExecutionMode = ApplicationExecutionMode.DRY_RUN,
 ) -> str:
     """Prepare an application for an APPLY decision."""
 
@@ -108,9 +117,40 @@ def process_application(
             latest_application is not None
             and latest_application.status in active_statuses
         ),
+        execution_mode=execution_mode,
     )
 
     if policy_result.action == ApplicationExecutionAction.BLOCK:
+        if (
+            execution_mode == ApplicationExecutionMode.APPROVAL_REQUIRED
+            and policy_result.reason
+            == "explicit application approval is required before submission"
+            and approval_service is not None
+        ):
+            approval = approval_service.request(
+                ApplicationApprovalRequest(
+                    source=job.source,
+                    source_job_id=job.source_job_id,
+                    job_title=job.title,
+                    company=job.company,
+                    application_method=application_method,
+                    apply_url=target.apply_url,
+                    recruiter_email=target.recruiter_email,
+                    reason=(
+                        "application requires explicit approval before "
+                        "submission"
+                    ),
+                ),
+                job_id=job_id,
+            )
+            print(
+                f"Application: APPROVAL PENDING | "
+                f"Approval ID: {approval.id} | "
+                f"Method: {application_method.value} | "
+                f"Job: {job.title!r}"
+            )
+            return "approval_pending"
+
         print(
             f"Application: BLOCKED | "
             f"Method: {application_method.value} | "
@@ -127,6 +167,10 @@ def process_application(
         application_method=application_method,
         apply_url=target.apply_url,
         recruiter_email=target.recruiter_email,
+        execution_mode=execution_mode,
+        submission_authorized=(
+            policy_result.action == ApplicationExecutionAction.ALLOW
+        ),
     )
 
     result = application_service.submit(
@@ -155,6 +199,8 @@ def process_source(
     application_repository: ApplicationRepository | None = None,
     target_discovery: ApplyTargetDiscovery | None = None,
     stats: ApplicationRunStats | None = None,
+    approval_service: ApplicationApprovalService | None = None,
+    execution_mode: ApplicationExecutionMode = ApplicationExecutionMode.DRY_RUN,
 ) -> tuple[int, int, int]:
     """Ingest, evaluate, rank, decide, and optionally prepare applications."""
 
@@ -228,6 +274,8 @@ def process_source(
                 application_repository=application_repository,
                 target_discovery=target_discovery,
                 stats=application_stats,
+                approval_service=approval_service,
+                execution_mode=execution_mode,
             )
 
     return len(jobs), evaluated_count, ignored_count
@@ -239,8 +287,16 @@ def run_recovery_phase(
     target_discovery: ApplyTargetDiscovery,
     application_service: ApplicationService,
     stats: ApplicationRunStats,
+    execution_mode: ApplicationExecutionMode,
 ) -> None:
     """Run safe recovery attempts for retryable applications."""
+
+    if execution_mode != ApplicationExecutionMode.FULL_AUTO:
+        print(
+            "Recovery: skipped because execution mode is "
+            f"{execution_mode.value}"
+        )
+        return
 
     recovery_service = ApplicationRecoveryService(
         repository=application_repository,
@@ -307,6 +363,7 @@ class WorkerCycle:
         application_repository: ApplicationRepository,
         application_service: ApplicationService,
         target_discovery: ApplyTargetDiscovery,
+        approval_service: ApplicationApprovalService | None = None,
     ) -> None:
         self.settings = settings
         self.client = client
@@ -315,6 +372,7 @@ class WorkerCycle:
         self.application_repository = application_repository
         self.application_service = application_service
         self.target_discovery = target_discovery
+        self.approval_service = approval_service
 
     def run_cycle(self) -> None:
         total_new_jobs = 0
@@ -343,6 +401,8 @@ class WorkerCycle:
                 application_repository=self.application_repository,
                 target_discovery=self.target_discovery,
                 stats=application_stats,
+                execution_mode=self.settings.application_execution_mode,
+                approval_service=self.approval_service,
             )
 
             total_new_jobs += new_count
@@ -389,6 +449,7 @@ class WorkerCycle:
             target_discovery=self.target_discovery,
             application_service=self.application_service,
             stats=total_application_stats,
+            execution_mode=self.settings.application_execution_mode,
         )
 
         print("=" * 60)

@@ -10,12 +10,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from packages.application.browser.application_preview import (
-    BrowserApplicationPreview,
-)
 from packages.application.browser.field_classifier import (
     BrowserFieldClassification,
     BrowserFieldKind,
+)
+from packages.application.browser.form_validator import (
+    BrowserApplicationPreview,
 )
 
 
@@ -49,14 +49,14 @@ class BrowserApplicationSafetyGuard:
         preview: BrowserApplicationPreview,
         fields: list[BrowserFieldClassification],
         submit_control_count: int,
-        approved: bool,
+        submission_authorized: bool,
     ) -> BrowserSafetyResult:
         """Return whether browser submission is safe to proceed."""
 
-        if not approved:
+        if not submission_authorized:
             return BrowserSafetyResult(
                 allowed=False,
-                reason="explicit application approval is required",
+                reason="application submission is not authorized by execution policy",
             )
 
         if not preview.valid:

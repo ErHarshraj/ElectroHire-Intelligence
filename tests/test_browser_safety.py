@@ -49,7 +49,7 @@ def make_preview(valid: bool = True) -> BrowserApplicationPreview:
     )
 
 
-def test_safety_allows_approved_valid_application() -> None:
+def test_safety_allows_authorized_valid_application() -> None:
     guard = BrowserApplicationSafetyGuard()
 
     result = guard.evaluate(
@@ -58,13 +58,13 @@ def test_safety_allows_approved_valid_application() -> None:
         preview=make_preview(),
         fields=[make_field()],
         submit_control_count=1,
-        approved=True,
+        submission_authorized=True,
     )
 
     assert result.allowed is True
 
 
-def test_safety_requires_explicit_approval() -> None:
+def test_safety_requires_submission_authorization() -> None:
     guard = BrowserApplicationSafetyGuard()
 
     result = guard.evaluate(
@@ -73,11 +73,11 @@ def test_safety_requires_explicit_approval() -> None:
         preview=make_preview(),
         fields=[make_field()],
         submit_control_count=1,
-        approved=False,
+        submission_authorized=False,
     )
 
     assert result.allowed is False
-    assert "approval" in result.reason
+    assert "not authorized" in result.reason
 
 
 def test_safety_blocks_invalid_preview() -> None:
@@ -89,7 +89,7 @@ def test_safety_blocks_invalid_preview() -> None:
         preview=make_preview(valid=False),
         fields=[make_field()],
         submit_control_count=1,
-        approved=True,
+        submission_authorized=True,
     )
 
     assert result.allowed is False
@@ -104,7 +104,7 @@ def test_safety_blocks_cross_origin_redirect() -> None:
         preview=make_preview(),
         fields=[make_field()],
         submit_control_count=1,
-        approved=True,
+        submission_authorized=True,
     )
 
     assert result.allowed is False
@@ -120,7 +120,7 @@ def test_safety_blocks_multiple_submit_controls() -> None:
         preview=make_preview(),
         fields=[make_field()],
         submit_control_count=2,
-        approved=True,
+        submission_authorized=True,
     )
 
     assert result.allowed is False
@@ -136,7 +136,7 @@ def test_safety_blocks_password_field() -> None:
         preview=make_preview(),
         fields=[field],
         submit_control_count=1,
-        approved=True,
+        submission_authorized=True,
     )
 
     assert result.allowed is False
@@ -157,7 +157,7 @@ def test_safety_blocks_captcha_field() -> None:
         preview=make_preview(),
         fields=[field],
         submit_control_count=1,
-        approved=True,
+        submission_authorized=True,
     )
 
     assert result.allowed is False
@@ -180,7 +180,7 @@ def test_safety_blocks_unknown_required_field() -> None:
         preview=make_preview(),
         fields=[unknown],
         submit_control_count=1,
-        approved=True,
+        submission_authorized=True,
     )
 
     assert result.allowed is False

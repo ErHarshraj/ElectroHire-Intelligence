@@ -160,3 +160,31 @@ class ApplicationModel(Base):
         DateTime(timezone=True),
         nullable=False,
     )
+
+class ApplicationApprovalModel(Base):
+    __tablename__ = "application_approvals"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey("jobs.id"),
+        nullable=False,
+    )
+
+    source: Mapped[str] = mapped_column(String(100), nullable=False)
+    source_job_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    job_title: Mapped[str] = mapped_column(String(255), nullable=False)
+    company: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    method: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    apply_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    recruiter_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    reason: Mapped[str] = mapped_column(Text, default="", nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

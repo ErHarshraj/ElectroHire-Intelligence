@@ -151,6 +151,7 @@ Best regards,
         company=job.company,
         application_method=ApplicationMethod.EMAIL,
         recruiter_email=target.recruiter_email,
+        submission_authorized=True,
     )
 
     result = service.submit(
@@ -258,7 +259,6 @@ def test_browser_application_persists_submission_and_blocks_resubmit(
         browser_adapter = BrowserApplicationAdapter(
             candidate=candidate,
             headless=True,
-            approved=True,
         )
 
         service = ApplicationService(
@@ -274,6 +274,7 @@ def test_browser_application_persists_submission_and_blocks_resubmit(
             company="Example Electronics",
             application_method=ApplicationMethod.BROWSER,
             apply_url=application_url,
+            submission_authorized=True,
         )
 
         first_result = service.submit(

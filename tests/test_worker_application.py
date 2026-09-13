@@ -8,6 +8,7 @@ from packages.application.adapters.dry_run import DryRunApplicationAdapter
 from packages.application.application_service import ApplicationService
 from packages.application.discovery.target_discovery import ApplyTargetDiscovery
 from packages.application.models import (
+    ApplicationExecutionMode,
     ApplicationMethod,
     ApplicationRequest,
     ApplicationResult,
@@ -191,6 +192,7 @@ def test_worker_prepares_browser_application() -> None:
         application_service=make_application_service(application_repository),
         application_repository=application_repository,
         target_discovery=ApplyTargetDiscovery(),
+            execution_mode=ApplicationExecutionMode.FULL_AUTO,
     )
 
     assert result == (1, 1, 0)
@@ -224,6 +226,7 @@ def test_worker_prepares_email_application() -> None:
         application_service=make_application_service(application_repository),
         application_repository=application_repository,
         target_discovery=ApplyTargetDiscovery(),
+            execution_mode=ApplicationExecutionMode.FULL_AUTO,
     )
 
     assert result == (1, 1, 0)
@@ -253,6 +256,7 @@ def test_worker_does_not_create_application_without_target() -> None:
         application_service=make_application_service(application_repository),
         application_repository=application_repository,
         target_discovery=ApplyTargetDiscovery(),
+            execution_mode=ApplicationExecutionMode.FULL_AUTO,
     )
 
     assert result == (1, 1, 0)
@@ -271,6 +275,7 @@ def test_worker_does_not_create_application_when_application_infrastructure_is_d
         source=SingleJobSource(job),
         repository=job_repository,
         decision_repository=decision_repository,
+            execution_mode=ApplicationExecutionMode.FULL_AUTO,
     )
 
     assert result == (1, 1, 0)
@@ -294,6 +299,7 @@ def test_worker_does_not_apply_alert_decision() -> None:
         application_service=make_application_service(application_repository),
         application_repository=application_repository,
         target_discovery=ApplyTargetDiscovery(),
+            execution_mode=ApplicationExecutionMode.FULL_AUTO,
     )
 
     assert result == (1, 1, 0)
@@ -351,6 +357,7 @@ def test_execution_policy_blocks_already_submitted_application() -> None:
         application_service=application_service,
         application_repository=application_repository,
         target_discovery=ApplyTargetDiscovery(),
+            execution_mode=ApplicationExecutionMode.FULL_AUTO,
     )
 
     assert result == (1, 1, 0)
@@ -385,6 +392,7 @@ def test_execution_policy_blocks_active_application_attempt() -> None:
         application_service=application_service,
         application_repository=application_repository,
         target_discovery=ApplyTargetDiscovery(),
+            execution_mode=ApplicationExecutionMode.FULL_AUTO,
     )
 
     assert result == (1, 1, 0)
@@ -466,7 +474,6 @@ def test_worker_executes_browser_application_end_to_end() -> None:
         browser_adapter = BrowserApplicationAdapter(
             candidate=candidate,
             headless=True,
-            approved=True,
         )
 
         application_service = ApplicationService(
@@ -482,6 +489,7 @@ def test_worker_executes_browser_application_end_to_end() -> None:
             application_service=application_service,
             application_repository=application_repository,
             target_discovery=ApplyTargetDiscovery(),
+            execution_mode=ApplicationExecutionMode.FULL_AUTO,
         )
 
         assert result == (1, 1, 0)

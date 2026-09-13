@@ -2,6 +2,8 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from packages.application.models import ApplicationExecutionMode
+
 
 class Settings(BaseSettings):
     app_name: str = "ElectroHire Intelligence"
@@ -44,6 +46,7 @@ class Settings(BaseSettings):
 
     email_enabled: bool = False
     browser_enabled: bool = False
+    application_execution_mode: ApplicationExecutionMode = ApplicationExecutionMode.DRY_RUN
     browser_headless: bool = True
     browser_timeout_ms: int = 15000
     browser_executable_path: str | None = None

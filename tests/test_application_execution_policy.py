@@ -2,7 +2,10 @@ from packages.application.execution_policy import (
     ApplicationExecutionAction,
     ApplicationExecutionPolicy,
 )
-from packages.application.models import ApplicationMethod
+from packages.application.models import (
+    ApplicationExecutionMode,
+    ApplicationMethod,
+)
 from packages.matching.decision import DecisionAction
 
 
@@ -15,10 +18,11 @@ def test_apply_decision_with_valid_target_is_allowed() -> None:
         target_value="recruiter@example.com",
         already_submitted=False,
         active_attempt=False,
+        execution_mode=ApplicationExecutionMode.FULL_AUTO,
     )
 
     assert result.action == ApplicationExecutionAction.ALLOW
-    assert result.reason == "application is eligible for execution"
+    assert result.reason == "application is eligible for full automatic execution"
 
 
 def test_alert_decision_is_never_allowed() -> None:
@@ -124,3 +128,50 @@ def test_email_target_must_contain_valid_email_structure() -> None:
 
     assert result.action == ApplicationExecutionAction.BLOCK
     assert result.reason == "email application target is invalid"
+
+
+def test_dry_run_blocks_submission() -> None:
+    policy = ApplicationExecutionPolicy()
+
+    result = policy.evaluate(
+        decision_action=DecisionAction.APPLY,
+        application_method=ApplicationMethod.EMAIL,
+        target_value="recruiter@example.com",
+        already_submitted=False,
+        active_attempt=False,
+    )
+
+    assert result.action == ApplicationExecutionAction.BLOCK
+    assert "dry-run" in result.reason
+
+
+def test_approval_required_blocks_submission() -> None:
+    policy = ApplicationExecutionPolicy()
+
+    result = policy.evaluate(
+        decision_action=DecisionAction.APPLY,
+        application_method=ApplicationMethod.EMAIL,
+        target_value="recruiter@example.com",
+        already_submitted=False,
+        active_attempt=False,
+        execution_mode=ApplicationExecutionMode.APPROVAL_REQUIRED,
+    )
+
+    assert result.action == ApplicationExecutionAction.BLOCK
+    assert "approval" in result.reason
+
+
+def test_full_auto_allows_submission() -> None:
+    policy = ApplicationExecutionPolicy()
+
+    result = policy.evaluate(
+        decision_action=DecisionAction.APPLY,
+        application_method=ApplicationMethod.EMAIL,
+        target_value="recruiter@example.com",
+        already_submitted=False,
+        active_attempt=False,
+        execution_mode=ApplicationExecutionMode.FULL_AUTO,
+    )
+
+    assert result.action == ApplicationExecutionAction.ALLOW
+    assert "full automatic" in result.reason

@@ -57,6 +57,16 @@ class ApplicationApprovalService:
         self.repository.reject(approval_id, datetime.now(timezone.utc))
         return self._require(approval_id)
 
+    def consume(
+        self, approval_id: int, consumed_at: datetime | None = None
+    ) -> ApplicationApprovalRecord:
+        self._require(approval_id)
+        if consumed_at is None:
+            consumed_at = datetime.now(timezone.utc)
+        self.repository.mark_consumed(approval_id, consumed_at)
+        return self._require(approval_id)
+
+
     def pending(self) -> list[ApplicationApprovalRecord]:
         return self.repository.list_pending()
 

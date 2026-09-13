@@ -1,5 +1,6 @@
 from packages.application.application_service import ApplicationService
 from packages.application.approval import ApplicationApprovalService
+from packages.application.approval_executor import ApplicationApprovalExecutor
 from packages.application.discovery.target_discovery import ApplyTargetDiscovery
 from packages.application.execution_policy import (
     ApplicationExecutionAction,
@@ -374,6 +375,50 @@ class WorkerCycle:
         self.target_discovery = target_discovery
         self.approval_service = approval_service
 
+    def run_approval_phase(self) -> None:
+        """Execute approved applications after current-state revalidation."""
+
+        if self.approval_service is None:
+            return
+
+        approvals = self.approval_service.approved()
+
+        print("=" * 60)
+        print("Application Approval Execution")
+        print("=" * 60)
+
+        if not approvals:
+            print("No approved applications are waiting for execution.")
+            return
+
+        executor = ApplicationApprovalExecutor(
+            approval_service=self.approval_service,
+            job_repository=self.repository,
+            decision_repository=self.decision_repository,
+            application_repository=self.application_repository,
+            application_service=self.application_service,
+            target_discovery=self.target_discovery,
+        )
+
+        print(f"Approved applications: {len(approvals)}")
+
+        for approval in approvals:
+            try:
+                result = executor.execute(approval)
+                print(
+                    f"Approval execution: {result.value.upper()} | "
+                    f"Approval ID: {approval.id} | "
+                    f"Job: {approval.job_title!r}"
+                )
+            except Exception as exc:
+                print(
+                    f"Approval execution blocked: "
+                    f"Approval ID: {approval.id} | "
+                    f"Job: {approval.job_title!r} | "
+                    f"Reason: {exc}"
+                )
+
+
     def run_cycle(self) -> None:
         total_new_jobs = 0
         total_evaluated_jobs = 0
@@ -442,6 +487,8 @@ class WorkerCycle:
                 f"Already submitted="
                 f"{application_stats.already_submitted}"
             )
+
+        self.run_approval_phase()
 
         run_recovery_phase(
             job_repository=self.repository,

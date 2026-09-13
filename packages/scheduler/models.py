@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from packages.observability.models import WorkerRunReport
+
 
 @dataclass(frozen=True)
 class SchedulerRunResult:
@@ -8,6 +10,7 @@ class SchedulerRunResult:
     completed_at: datetime
     success: bool
     message: str
+    report: WorkerRunReport | None = None
 
 
 @dataclass(frozen=True)

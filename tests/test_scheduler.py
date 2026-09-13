@@ -1,7 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
+from packages.application.stats import ApplicationRunStats
+from packages.observability.models import WorkerRunReport
 from packages.scheduler.models import SchedulerConfig
 from packages.scheduler.service import ScheduledWork, SchedulerService
 
@@ -11,11 +13,24 @@ class FakeWork(ScheduledWork):
         self.calls = 0
         self.failures = failures
 
-    def run_cycle(self) -> None:
+    def run_cycle(self) -> WorkerRunReport:
         self.calls += 1
 
         if self.calls <= self.failures:
             raise RuntimeError("test failure")
+
+        now = datetime.now(timezone.utc)
+
+        return WorkerRunReport(
+            started_at=now,
+            completed_at=now,
+            success=True,
+            queries_processed=0,
+            new_jobs=0,
+            evaluated_jobs=0,
+            ignored_jobs=0,
+            application_stats=ApplicationRunStats(),
+        )
 
 
 def test_scheduler_runs_one_cycle() -> None:
@@ -138,3 +153,37 @@ def test_scheduler_continues_after_failed_cycle() -> None:
 
     assert work.calls == 2
     assert sleep_calls == [60, 60]
+
+
+def test_scheduler_preserves_worker_run_report() -> None:
+    class ReportingWork(ScheduledWork):
+        def run_cycle(self) -> WorkerRunReport:
+            started_at = datetime.now(timezone.utc)
+            completed_at = datetime.now(timezone.utc)
+
+            return WorkerRunReport(
+                started_at=started_at,
+                completed_at=completed_at,
+                success=True,
+                queries_processed=2,
+                new_jobs=5,
+                evaluated_jobs=4,
+                ignored_jobs=1,
+                application_stats=ApplicationRunStats(
+                    apply_decisions=2,
+                    targets_found=2,
+                    submitted=1,
+                ),
+            )
+
+    scheduler = SchedulerService(ReportingWork())
+
+    result = scheduler.run_once()
+
+    assert result.success is True
+    assert result.report is not None
+    assert result.report.queries_processed == 2
+    assert result.report.new_jobs == 5
+    assert result.report.evaluated_jobs == 4
+    assert result.report.ignored_jobs == 1
+    assert result.report.application_stats.submitted == 1

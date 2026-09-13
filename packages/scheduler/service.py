@@ -3,6 +3,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from time import sleep
 
+from packages.observability.models import WorkerRunReport
 from packages.scheduler.models import SchedulerConfig, SchedulerRunResult
 
 
@@ -10,7 +11,7 @@ class ScheduledWork(ABC):
     """Defines one complete autonomous worker cycle."""
 
     @abstractmethod
-    def run_cycle(self) -> None:
+    def run_cycle(self) -> WorkerRunReport:
         raise NotImplementedError
 
 
@@ -32,7 +33,7 @@ class SchedulerService:
         started_at = datetime.now(timezone.utc)
 
         try:
-            self.work.run_cycle()
+            report = self.work.run_cycle()
         except Exception as exc:
             completed_at = datetime.now(timezone.utc)
 
@@ -50,6 +51,7 @@ class SchedulerService:
             completed_at=completed_at,
             success=True,
             message="scheduled cycle completed successfully",
+            report=report,
         )
 
     def run_forever(

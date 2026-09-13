@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from packages.application.application_service import ApplicationService
 from packages.application.approval import ApplicationApprovalService
 from packages.application.approval_executor import ApplicationApprovalExecutor
@@ -27,6 +29,7 @@ from packages.matching.decision import DecisionAction, JobDecisionEngine
 from packages.matching.evaluation import JobEvaluationService
 from packages.matching.ranking import JobRankingEngine
 from packages.matching.relevance import JobRelevanceEngine
+from packages.observability.models import WorkerRunReport
 from packages.persistence.application_repository import ApplicationRepository
 from packages.persistence.decision_repository import DecisionRepository
 from packages.persistence.job_repository import JobRepository
@@ -419,7 +422,8 @@ class WorkerCycle:
                 )
 
 
-    def run_cycle(self) -> None:
+    def run_cycle(self) -> WorkerRunReport:
+        started_at = datetime.now(timezone.utc)
         total_new_jobs = 0
         total_evaluated_jobs = 0
         total_ignored_jobs = 0
@@ -557,4 +561,16 @@ class WorkerCycle:
         print(
             f"Recovery skipped: "
             f"{total_application_stats.recovery_skipped}"
+        )
+
+        completed_at = datetime.now(timezone.utc)
+        return WorkerRunReport(
+            started_at=started_at,
+            completed_at=completed_at,
+            success=True,
+            queries_processed=len(self.settings.adzuna_queries),
+            new_jobs=total_new_jobs,
+            evaluated_jobs=total_evaluated_jobs,
+            ignored_jobs=total_ignored_jobs,
+            application_stats=total_application_stats,
         )

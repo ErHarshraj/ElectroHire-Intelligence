@@ -466,6 +466,7 @@ def test_worker_executes_browser_application_end_to_end() -> None:
         browser_adapter = BrowserApplicationAdapter(
             candidate=candidate,
             headless=True,
+            approved=True,
         )
 
         application_service = ApplicationService(

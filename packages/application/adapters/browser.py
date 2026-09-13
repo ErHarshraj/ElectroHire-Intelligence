@@ -9,8 +9,9 @@ The adapter orchestrates the complete browser application flow:
 4. Map candidate data.
 5. Fill only approved fields.
 6. Validate the prepared form.
-7. Submit automatically.
-8. Confirm submission.
+7. Run browser safety checks.
+8. Submit automatically.
+9. Confirm submission.
 
 It does not bypass authentication, CAPTCHA, anti-bot protections,
 or other access controls.
@@ -35,6 +36,9 @@ from packages.application.browser.field_filler import BrowserFieldFiller
 from packages.application.browser.field_inspector import BrowserFieldInspector
 from packages.application.browser.field_mapping import BrowserFieldMapper
 from packages.application.browser.form_validator import BrowserFormValidator
+from packages.application.browser.safety import (
+    BrowserApplicationSafetyGuard,
+)
 from packages.application.browser.submission_executor import (
     BrowserSubmissionExecutor,
     BrowserSubmissionStatus,
@@ -64,11 +68,13 @@ class BrowserApplicationAdapter(ApplicationAdapter):
         headless: bool = True,
         timeout_ms: int = 15000,
         executable_path: str | None = None,
+        approved: bool = False,
     ) -> None:
         self.candidate = candidate
         self.headless = headless
         self.timeout_ms = timeout_ms
         self.executable_path = executable_path or self._find_chromium()
+        self.approved = approved
 
         self.inspector = BrowserFieldInspector()
         self.classifier = BrowserFieldClassifier()
@@ -78,6 +84,7 @@ class BrowserApplicationAdapter(ApplicationAdapter):
         self.preview_builder = BrowserApplicationPreviewBuilder(
             validator=self.validator,
         )
+        self.safety_guard = BrowserApplicationSafetyGuard()
         self.submission_executor = BrowserSubmissionExecutor(
             timeout_ms=timeout_ms,
         )
@@ -212,6 +219,34 @@ class BrowserApplicationAdapter(ApplicationAdapter):
                     )
 
                 full_preview = self.validator.validate(page, mappings)
+
+                submit_controls = page.locator(
+                    'button[type="submit"], '
+                    'input[type="submit"], '
+                    'button:not([type])'
+                )
+
+                submit_control_count = submit_controls.count()
+
+                safety = self.safety_guard.evaluate(
+                    application_url=request.apply_url,
+                    current_url=page.url,
+                    preview=full_preview,
+                    fields=classifications,
+                    submit_control_count=submit_control_count,
+                    approved=self.approved,
+                )
+
+                if not safety.allowed:
+                    return ApplicationResult(
+                        status=ApplicationStatus.PAUSED,
+                        method=request.application_method,
+                        message=(
+                            "browser application blocked by safety guard: "
+                            + safety.reason
+                        ),
+                        external_reference=page.url,
+                    )
 
                 submission = self.submission_executor.submit(
                     page,

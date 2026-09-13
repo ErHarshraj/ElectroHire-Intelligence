@@ -258,6 +258,7 @@ def test_browser_application_persists_submission_and_blocks_resubmit(
         browser_adapter = BrowserApplicationAdapter(
             candidate=candidate,
             headless=True,
+            approved=True,
         )
 
         service = ApplicationService(

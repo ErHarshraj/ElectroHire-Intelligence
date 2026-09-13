@@ -99,6 +99,7 @@ def test_browser_adapter_submits_local_application_form() -> None:
         adapter = BrowserApplicationAdapter(
             candidate=candidate,
             headless=True,
+            approved=True,
         )
 
         result = adapter.submit(

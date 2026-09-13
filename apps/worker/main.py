@@ -18,6 +18,7 @@ from packages.application.recovery_executor import ApplicationRecoveryExecutor
 from packages.application.stats import ApplicationRunStats
 from packages.common.config import Settings, get_settings
 from packages.job_sources.adzuna.client import AdzunaClient
+from packages.observability.models import WorkerRunReport
 from packages.persistence.application_repository import ApplicationRepository
 from packages.persistence.database import SessionLocal, create_tables
 from packages.persistence.job_repository import JobRepository
@@ -236,7 +237,7 @@ class ScheduledWorker(ScheduledWork):
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
-    def run_cycle(self) -> None:
+    def run_cycle(self) -> WorkerRunReport:
         session = SessionLocal()
 
         try:
@@ -244,7 +245,7 @@ class ScheduledWorker(ScheduledWork):
                 settings=self.settings,
                 session=session,
             )
-            cycle.run_cycle()
+            return cycle.run_cycle()
         finally:
             session.close()
 

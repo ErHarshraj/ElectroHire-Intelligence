@@ -150,3 +150,34 @@ def test_list_can_filter_by_source_type() -> None:
     assert registry.list(SourceType.JOB) == ["example_job"]
     assert registry.list(SourceType.STARTUP) == ["example_startup"]
     assert registry.list(SourceType.COMPANY) == []
+
+
+def test_registry_can_create_adzuna_source() -> None:
+    from packages.job_sources.adzuna.client import AdzunaClient
+    from packages.job_sources.adzuna.source import AdzunaJobSource
+
+    client = AdzunaClient(
+        app_id="test-app-id",
+        app_key="test-app-key",
+    )
+
+    def create_adzuna_source() -> SourceAdapter:
+        return AdzunaJobSource(
+            client=client,
+            query="embedded hardware",
+        )
+
+    registry = SourceFactoryRegistry()
+
+    registry.register(
+        name="adzuna",
+        source_type=SourceType.JOB,
+        factory=create_adzuna_source,
+    )
+
+    source = registry.get("adzuna")()
+
+    assert isinstance(source, AdzunaJobSource)
+    assert source.name == "adzuna"
+    assert source.source_type == SourceType.JOB
+    assert source.query == "embedded hardware"

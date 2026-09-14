@@ -11,6 +11,15 @@ different domain objects.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from enum import Enum
+
+
+class SourceType(str, Enum):
+    """Supported categories of external discovery sources."""
+
+    JOB = "job"
+    STARTUP = "startup"
+    COMPANY = "company"
 
 
 class SourceAdapter(ABC):
@@ -26,13 +35,6 @@ class SourceAdapter(ABC):
 
     @property
     @abstractmethod
-    def source_type(self) -> str:
-        """
-        Return the type of discovery source.
-
-        Examples:
-        - job
-        - startup
-        - company
-        """
+    def source_type(self) -> SourceType:
+        """Return the type of discovery source."""
         raise NotImplementedError

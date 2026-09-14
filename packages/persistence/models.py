@@ -188,3 +188,46 @@ class ApplicationApprovalModel(Base):
     rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class WorkerRunModel(Base):
+    __tablename__ = "worker_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    success: Mapped[bool] = mapped_column(nullable=False)
+
+    queries_processed: Mapped[int] = mapped_column(nullable=False)
+    new_jobs: Mapped[int] = mapped_column(nullable=False)
+    evaluated_jobs: Mapped[int] = mapped_column(nullable=False)
+    ignored_jobs: Mapped[int] = mapped_column(nullable=False)
+
+    apply_decisions: Mapped[int] = mapped_column(nullable=False)
+    targets_found: Mapped[int] = mapped_column(nullable=False)
+    no_target: Mapped[int] = mapped_column(nullable=False)
+    submitted: Mapped[int] = mapped_column(nullable=False)
+    pending: Mapped[int] = mapped_column(nullable=False)
+    failed: Mapped[int] = mapped_column(nullable=False)
+    paused: Mapped[int] = mapped_column(nullable=False)
+    already_submitted: Mapped[int] = mapped_column(nullable=False)
+
+    recovery_candidates: Mapped[int] = mapped_column(nullable=False)
+    recovery_submitted: Mapped[int] = mapped_column(nullable=False)
+    recovery_failed: Mapped[int] = mapped_column(nullable=False)
+    recovery_paused: Mapped[int] = mapped_column(nullable=False)
+    recovery_skipped: Mapped[int] = mapped_column(nullable=False)
+
+    error: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )

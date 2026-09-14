@@ -48,7 +48,7 @@ class JobQualityEngine:
             JobQualityResult containing score, quality band,
             and human-readable reasons.
         """
-        now = reference_time or datetime.now()
+        now = reference_time or datetime.now().astimezone()
 
         score = 0.0
         reasons: list[str] = []

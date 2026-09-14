@@ -27,6 +27,7 @@ from packages.job_sources.adzuna.source import AdzunaJobSource
 from packages.job_sources.base import JobSource
 from packages.matching.decision import DecisionAction, JobDecisionEngine
 from packages.matching.evaluation import JobEvaluationService
+from packages.matching.quality import JobQualityEngine
 from packages.matching.ranking import JobRankingEngine
 from packages.matching.relevance import JobRelevanceEngine
 from packages.observability.models import WorkerRunReport
@@ -221,6 +222,7 @@ def process_source(
 
     ranking = JobRankingEngine()
     decision = JobDecisionEngine()
+    quality = JobQualityEngine()
 
     jobs = ingestion.ingest()
 
@@ -230,6 +232,7 @@ def process_source(
 
     for job in jobs:
         relevance_result = evaluation.evaluate(job)
+        quality_result = quality.evaluate(job)
         ranking_result = ranking.rank(job)
         decision_result = decision.decide(
             job=job,
@@ -260,6 +263,7 @@ def process_source(
 
         print(
             f"Job: {job.title!r} | "
+            f"Quality: {quality_result.quality} ({quality_result.score:.1f}) | "
             f"Score: {ranking_result.score:.1f} | "
             f"Priority: {ranking_result.priority} | "
             f"Decision: {decision_result.action.value}"

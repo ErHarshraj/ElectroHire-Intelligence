@@ -18,6 +18,7 @@ from packages.application.recovery_executor import ApplicationRecoveryExecutor
 from packages.application.stats import ApplicationRunStats
 from packages.common.config import Settings, get_settings
 from packages.job_sources.adzuna.client import AdzunaClient
+from packages.job_sources.adzuna.source import AdzunaJobSource
 from packages.observability.models import WorkerRunReport
 from packages.persistence.application_repository import ApplicationRepository
 from packages.persistence.database import SessionLocal, create_tables
@@ -39,6 +40,8 @@ from packages.persistence.sqlalchemy_worker_run_repository import (
 )
 from packages.scheduler.models import SchedulerConfig
 from packages.scheduler.service import ScheduledWork, SchedulerService
+from packages.source_factory import SourceFactoryRegistry
+from packages.sources import SourceAdapter, SourceType
 
 __all__ = [
     "WorkerCycle",
@@ -267,13 +270,48 @@ def build_worker_cycle(
     settings: Settings,
     session: Session,
 ) -> WorkerCycle:
-    """Build one worker cycle using the supplied database session."""
+    """Build one worker cycle using configured source factories."""
+
+    if not settings.adzuna_app_id or not settings.adzuna_app_key:
+        raise RuntimeError(
+            "Adzuna credentials are not configured. "
+            "Set ADZUNA_APP_ID and ADZUNA_APP_KEY in .env."
+        )
 
     client = AdzunaClient(
-        app_id=settings.adzuna_app_id or "",
-        app_key=settings.adzuna_app_key or "",
+        app_id=settings.adzuna_app_id,
+        app_key=settings.adzuna_app_key,
         country=settings.adzuna_country,
     )
+
+    factory_registry = SourceFactoryRegistry()
+
+    def create_adzuna_source(
+        *,
+        query: str,
+        pages: int,
+    ) -> SourceAdapter:
+        return AdzunaJobSource(
+            client=client,
+            query=query,
+            pages=pages,
+        )
+
+    factory_registry.register(
+        name="adzuna",
+        source_type=SourceType.JOB,
+        factory=create_adzuna_source,
+    )
+
+    adzuna_factory = factory_registry.get("adzuna")
+
+    sources = [
+        adzuna_factory(
+            query=query,
+            pages=settings.adzuna_pages,
+        )
+        for query in settings.adzuna_queries
+    ]
 
     repository = SQLAlchemyJobRepository(session)
     decision_repository = SQLAlchemyDecisionRepository(session)
@@ -290,7 +328,7 @@ def build_worker_cycle(
 
     return WorkerCycle(
         settings=settings,
-        client=client,
+        sources=sources,
         repository=repository,
         decision_repository=decision_repository,
         application_repository=application_repository,
@@ -298,8 +336,6 @@ def build_worker_cycle(
         target_discovery=target_discovery,
         approval_service=approval_service,
     )
-
-
 def run() -> None:
     """Run one complete worker cycle."""
 

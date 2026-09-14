@@ -4,12 +4,17 @@ from packages.domain.job import Job
 from packages.job_sources.adzuna.client import AdzunaClient
 from packages.job_sources.adzuna.parser import parse_job
 from packages.job_sources.base import JobSource
+from packages.sources import SourceAdapter, SourceType
 
 
-class AdzunaJobSource(JobSource):
+class AdzunaJobSource(JobSource, SourceAdapter):
     """Adzuna-backed implementation of the JobSource interface."""
 
     name = "adzuna"
+
+    @property
+    def source_type(self) -> SourceType:
+        return SourceType.JOB
 
     def __init__(
         self,

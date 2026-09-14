@@ -19,14 +19,19 @@ from packages.opportunity.discovery import (
     StartupDiscoverySource,
     StartupNewsItem,
 )
+from packages.sources import SourceAdapter, SourceType
 
 
-class GoogleNewsStartupSource(StartupDiscoverySource):
+class GoogleNewsStartupSource(StartupDiscoverySource, SourceAdapter):
     """Discover startup-related news through a Google News RSS search."""
 
     name = "google_news"
 
     BASE_URL = "https://news.google.com/rss/search"
+
+    @property
+    def source_type(self) -> SourceType:
+        return SourceType.STARTUP
 
     def __init__(
         self,

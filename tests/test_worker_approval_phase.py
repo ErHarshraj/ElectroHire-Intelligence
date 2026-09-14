@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from unittest.mock import Mock
 
@@ -16,6 +17,7 @@ from packages.application.models import (
 )
 from packages.common.config import Settings
 from packages.domain.job import Job
+from packages.job_sources.base import JobSource
 from packages.matching.decision import DecisionAction
 from packages.persistence.application_approval_repository import (
     ApplicationApprovalRecord,
@@ -166,6 +168,16 @@ class FakeApprovalRepository(ApplicationApprovalRepository):
         )
 
 
+
+class FakeJobSource(JobSource):
+    """Deterministic job source used by the approval-phase test."""
+
+    name = "test"
+
+    def fetch_jobs(self) -> Iterable[Job]:
+        return []
+
+
 def make_job() -> Job:
     timestamp = datetime(2026, 8, 28, tzinfo=timezone.utc)
 
@@ -195,11 +207,10 @@ def make_worker(
     application_service: ApplicationService,
 ) -> WorkerCycle:
     settings = Mock(spec=Settings)
-    client = Mock()
 
     return WorkerCycle(
         settings=settings,
-        client=client,
+        sources=[FakeJobSource()],
         repository=job_repository,
         decision_repository=decision_repository,
         application_repository=application_repository,

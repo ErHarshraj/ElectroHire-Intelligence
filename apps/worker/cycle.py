@@ -22,8 +22,6 @@ from packages.common.config import Settings
 from packages.domain.job import Job
 from packages.domain.lifecycle import JobLifecycle
 from packages.ingestion.service import IngestionService
-from packages.job_sources.adzuna.client import AdzunaClient
-from packages.job_sources.adzuna.source import AdzunaJobSource
 from packages.job_sources.base import JobSource
 from packages.matching.decision import DecisionAction, JobDecisionEngine
 from packages.matching.evaluation import JobEvaluationService
@@ -365,7 +363,7 @@ class WorkerCycle:
     def __init__(
         self,
         settings: Settings,
-        client: AdzunaClient,
+        sources: list[JobSource],
         repository: JobRepository,
         decision_repository: DecisionRepository,
         application_repository: ApplicationRepository,
@@ -374,7 +372,7 @@ class WorkerCycle:
         approval_service: ApplicationApprovalService | None = None,
     ) -> None:
         self.settings = settings
-        self.client = client
+        self.sources = sources
         self.repository = repository
         self.decision_repository = decision_repository
         self.application_repository = application_repository
@@ -433,15 +431,10 @@ class WorkerCycle:
         total_ignored_jobs = 0
         total_application_stats = ApplicationRunStats()
 
-        for query in self.settings.adzuna_queries:
-            source = AdzunaJobSource(
-                client=self.client,
-                query=query,
-                pages=self.settings.adzuna_pages,
-            )
+        for source in self.sources:
 
             print("=" * 60)
-            print(f"Processing query: {query}")
+            print(f"Processing source: {source.name}")
             print("=" * 60)
 
             application_stats = ApplicationRunStats()
@@ -478,7 +471,7 @@ class WorkerCycle:
             )
 
             print(
-                f"Query: {query!r} | "
+                f"Source: {source.name!r} | "
                 f"New jobs: {new_count} | "
                 f"Evaluated: {evaluated_count} | "
                 f"Ignored: {ignored_count}"
@@ -572,7 +565,7 @@ class WorkerCycle:
             started_at=started_at,
             completed_at=completed_at,
             success=True,
-            queries_processed=len(self.settings.adzuna_queries),
+            queries_processed=len(self.sources),
             new_jobs=total_new_jobs,
             evaluated_jobs=total_evaluated_jobs,
             ignored_jobs=total_ignored_jobs,

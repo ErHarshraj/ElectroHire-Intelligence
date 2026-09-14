@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Any, cast
 
 import pytest
@@ -7,7 +8,8 @@ from packages.application.application_service import ApplicationService
 from packages.application.approval import ApplicationApprovalService
 from packages.application.discovery.target_discovery import ApplyTargetDiscovery
 from packages.common.config import Settings
-from packages.job_sources.adzuna.client import AdzunaClient
+from packages.domain.job import Job
+from packages.job_sources.base import JobSource
 from packages.observability.models import WorkerRunReport
 from packages.persistence.application_repository import ApplicationRepository
 from packages.persistence.decision_repository import DecisionRepository
@@ -26,6 +28,20 @@ class FakeTargetDiscovery:
     pass
 
 
+class FakeJobSource(JobSource):
+    """Deterministic job source used by the worker report test."""
+
+    def __init__(self, source_name: str) -> None:
+        self._name = source_name
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def fetch_jobs(self) -> Iterable[Job]:
+        return []
+
+
 def test_worker_cycle_returns_run_report(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -38,10 +54,10 @@ def test_worker_cycle_returns_run_report(
 
     cycle = WorkerCycle(
         settings=settings,
-        client=AdzunaClient(
-            app_id="test-app-id",
-            app_key="test-app-key",
-        ),
+        sources=[
+            FakeJobSource("hardware"),
+            FakeJobSource("embedded"),
+        ],
         repository=cast(JobRepository, object()),
         decision_repository=cast(DecisionRepository, object()),
         application_repository=cast(ApplicationRepository, object()),

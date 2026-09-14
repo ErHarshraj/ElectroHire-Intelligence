@@ -34,6 +34,9 @@ from packages.persistence.sqlalchemy_decision_repository import (
 from packages.persistence.sqlalchemy_job_repository import (
     SQLAlchemyJobRepository,
 )
+from packages.persistence.sqlalchemy_worker_run_repository import (
+    SQLAlchemyWorkerRunRepository,
+)
 from packages.scheduler.models import SchedulerConfig
 from packages.scheduler.service import ScheduledWork, SchedulerService
 
@@ -245,7 +248,17 @@ class ScheduledWorker(ScheduledWork):
                 settings=self.settings,
                 session=session,
             )
-            return cycle.run_cycle()
+
+            report = cycle.run_cycle()
+
+            worker_run_repository = SQLAlchemyWorkerRunRepository(
+                session
+            )
+            worker_run_repository.save(
+                worker_run_repository.from_report(report)
+            )
+
+            return report
         finally:
             session.close()
 
@@ -307,7 +320,15 @@ def run() -> None:
             settings=settings,
             session=session,
         )
-        cycle.run_cycle()
+
+        report = cycle.run_cycle()
+
+        worker_run_repository = SQLAlchemyWorkerRunRepository(
+            session
+        )
+        worker_run_repository.save(
+            worker_run_repository.from_report(report)
+        )
     finally:
         session.close()
 

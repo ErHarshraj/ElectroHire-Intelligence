@@ -1,7 +1,11 @@
+from datetime import datetime, timezone
+
 import pytest
 
 from apps.worker.main import ScheduledWorker
+from packages.application.stats import ApplicationRunStats
 from packages.common.config import Settings
+from packages.observability.models import WorkerRunReport
 
 
 class FakeSession:
@@ -17,11 +21,46 @@ class FakeCycle:
         self.should_fail = should_fail
         self.run_count = 0
 
-    def run_cycle(self) -> None:
+    def run_cycle(self) -> WorkerRunReport:
         self.run_count += 1
 
         if self.should_fail:
             raise RuntimeError("cycle failed")
+
+        now = datetime.now(timezone.utc)
+
+        return WorkerRunReport(
+            started_at=now,
+            completed_at=now,
+            success=True,
+            queries_processed=0,
+            new_jobs=0,
+            evaluated_jobs=0,
+            ignored_jobs=0,
+            application_stats=ApplicationRunStats(),
+        )
+
+
+class FakeWorkerRunRepository:
+    def __init__(self, session: FakeSession) -> None:
+        self.session = session
+
+    @staticmethod
+    def from_report(report: WorkerRunReport) -> WorkerRunReport:
+        return report
+
+    def save(self, record: WorkerRunReport) -> int:
+        return 1
+
+
+@pytest.fixture(autouse=True)
+def fake_worker_run_repository(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "apps.worker.main.SQLAlchemyWorkerRunRepository",
+        FakeWorkerRunRepository,
+    )
 
 
 def test_scheduled_worker_creates_and_closes_session(

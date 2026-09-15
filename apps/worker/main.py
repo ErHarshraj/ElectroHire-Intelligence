@@ -3,6 +3,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from apps.worker.cycle import WorkerCycle, process_source
+from apps.worker.source_builder import build_job_sources
 from packages.application.adapters.base import ApplicationAdapter
 from packages.application.adapters.browser import BrowserApplicationAdapter
 from packages.application.adapters.dry_run import DryRunApplicationAdapter
@@ -18,7 +19,6 @@ from packages.application.recovery_executor import ApplicationRecoveryExecutor
 from packages.application.stats import ApplicationRunStats
 from packages.common.config import Settings, get_settings
 from packages.job_sources.adzuna.client import AdzunaClient
-from packages.job_sources.adzuna.source import AdzunaJobSource
 from packages.observability.models import WorkerRunReport
 from packages.persistence.application_repository import ApplicationRepository
 from packages.persistence.database import SessionLocal, create_tables
@@ -40,8 +40,6 @@ from packages.persistence.sqlalchemy_worker_run_repository import (
 )
 from packages.scheduler.models import SchedulerConfig
 from packages.scheduler.service import ScheduledWork, SchedulerService
-from packages.source_factory import SourceFactoryRegistry
-from packages.sources import SourceAdapter, SourceType
 
 __all__ = [
     "WorkerCycle",
@@ -284,34 +282,10 @@ def build_worker_cycle(
         country=settings.adzuna_country,
     )
 
-    factory_registry = SourceFactoryRegistry()
-
-    def create_adzuna_source(
-        *,
-        query: str,
-        pages: int,
-    ) -> SourceAdapter:
-        return AdzunaJobSource(
-            client=client,
-            query=query,
-            pages=pages,
-        )
-
-    factory_registry.register(
-        name="adzuna",
-        source_type=SourceType.JOB,
-        factory=create_adzuna_source,
+    sources = build_job_sources(
+        settings=settings,
+        adzuna_client=client,
     )
-
-    adzuna_factory = factory_registry.get("adzuna")
-
-    sources = [
-        adzuna_factory(
-            query=query,
-            pages=settings.adzuna_pages,
-        )
-        for query in settings.adzuna_queries
-    ]
 
     repository = SQLAlchemyJobRepository(session)
     decision_repository = SQLAlchemyDecisionRepository(session)

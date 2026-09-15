@@ -3,6 +3,10 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from packages.application.models import ApplicationExecutionMode
+from packages.common.greenhouse_config import (
+    GreenhouseBoardConfig,
+    parse_greenhouse_boards,
+)
 
 
 class Settings(BaseSettings):
@@ -40,6 +44,11 @@ class Settings(BaseSettings):
     adzuna_pages: int = 1
 
     greenhouse_boards: list[str] = []
+
+    @property
+    def greenhouse_board_configs(self) -> list[GreenhouseBoardConfig]:
+        """Return parsed Greenhouse career-board configurations."""
+        return parse_greenhouse_boards(self.greenhouse_boards)
 
     scheduler_discovery_interval_minutes: int = 60
     scheduler_recovery_interval_minutes: int = 30

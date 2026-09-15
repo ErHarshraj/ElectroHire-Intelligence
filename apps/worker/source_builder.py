@@ -15,12 +15,14 @@ from packages.sources import SourceAdapter, SourceType
 
 def build_job_sources(
     settings: Settings,
-    adzuna_client: AdzunaClient,
+    adzuna_client: AdzunaClient | None = None,
 ) -> list[SourceAdapter]:
     """
     Build all configured job sources.
 
-    Each configured Adzuna query creates one Adzuna source.
+    Each configured Adzuna query creates an Adzuna source when
+    an Adzuna client is available.
+
     Each configured Greenhouse board creates one Greenhouse source.
     Each configured Lever board creates one Lever source.
     """
@@ -32,6 +34,11 @@ def build_job_sources(
         query: str,
         pages: int,
     ) -> SourceAdapter:
+        if adzuna_client is None:
+            raise RuntimeError(
+                "Adzuna source requested without an Adzuna client."
+            )
+
         return AdzunaJobSource(
             client=adzuna_client,
             query=query,
@@ -78,15 +85,16 @@ def build_job_sources(
 
     sources: list[SourceAdapter] = []
 
-    adzuna_factory = factory_registry.get("adzuna")
+    if adzuna_client is not None:
+        adzuna_factory = factory_registry.get("adzuna")
 
-    sources.extend(
-        adzuna_factory(
-            query=query,
-            pages=settings.adzuna_pages,
+        sources.extend(
+            adzuna_factory(
+                query=query,
+                pages=settings.adzuna_pages,
+            )
+            for query in settings.adzuna_queries
         )
-        for query in settings.adzuna_queries
-    )
 
     greenhouse_factory = factory_registry.get("greenhouse")
 

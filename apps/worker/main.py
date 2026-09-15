@@ -270,22 +270,26 @@ def build_worker_cycle(
 ) -> WorkerCycle:
     """Build one worker cycle using configured source factories."""
 
-    if not settings.adzuna_app_id or not settings.adzuna_app_key:
-        raise RuntimeError(
-            "Adzuna credentials are not configured. "
-            "Set ADZUNA_APP_ID and ADZUNA_APP_KEY in .env."
-        )
+    client: AdzunaClient | None = None
 
-    client = AdzunaClient(
-        app_id=settings.adzuna_app_id,
-        app_key=settings.adzuna_app_key,
-        country=settings.adzuna_country,
-    )
+    if settings.adzuna_app_id and settings.adzuna_app_key:
+        client = AdzunaClient(
+            app_id=settings.adzuna_app_id,
+            app_key=settings.adzuna_app_key,
+            country=settings.adzuna_country,
+        )
 
     sources = build_job_sources(
         settings=settings,
         adzuna_client=client,
     )
+
+    if not sources:
+        raise RuntimeError(
+            "No job sources are configured. "
+            "Configure Adzuna credentials, Greenhouse boards, "
+            "or Lever boards."
+        )
 
     repository = SQLAlchemyJobRepository(session)
     decision_repository = SQLAlchemyDecisionRepository(session)
@@ -315,12 +319,6 @@ def run() -> None:
 
     settings = get_settings()
 
-    if not settings.adzuna_app_id or not settings.adzuna_app_key:
-        raise RuntimeError(
-            "Adzuna credentials are not configured. "
-            "Set ADZUNA_APP_ID and ADZUNA_APP_KEY in .env."
-        )
-
     create_tables()
 
     session = SessionLocal()
@@ -347,12 +345,6 @@ def run_scheduled() -> None:
     """Run the worker continuously at the configured discovery interval."""
 
     settings = get_settings()
-
-    if not settings.adzuna_app_id or not settings.adzuna_app_key:
-        raise RuntimeError(
-            "Adzuna credentials are not configured. "
-            "Set ADZUNA_APP_ID and ADZUNA_APP_KEY in .env."
-        )
 
     create_tables()
 

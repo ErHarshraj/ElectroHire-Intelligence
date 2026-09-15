@@ -174,3 +174,50 @@ def test_build_job_sources_has_no_lever_sources_when_unconfigured() -> None:
 
     assert len(sources) == 1
     assert isinstance(sources[0], AdzunaJobSource)
+
+
+def test_build_job_sources_creates_greenhouse_without_adzuna_client() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        greenhouse_boards=[
+            "Texas Instruments:texas-instruments",
+        ],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert len(sources) == 1
+    assert isinstance(sources[0], GreenhouseJobSource)
+
+
+def test_build_job_sources_creates_lever_without_adzuna_client() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        lever_boards=[
+            "Palantir:palantir",
+        ],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert len(sources) == 1
+    assert isinstance(sources[0], LeverJobSource)
+
+
+def test_build_job_sources_skips_adzuna_without_client() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[
+            "embedded hardware",
+        ],
+        greenhouse_boards=[
+            "Texas Instruments:texas-instruments",
+        ],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert len(sources) == 1
+    assert isinstance(sources[0], GreenhouseJobSource)

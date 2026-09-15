@@ -7,19 +7,63 @@ from packages.persistence.in_memory import InMemoryJobRepository
 from packages.persistence.in_memory_decision import InMemoryDecisionRepository
 
 
-def test_worker_requires_adzuna_credentials(
+def test_worker_requires_at_least_one_job_source(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     get_settings.cache_clear()
 
     monkeypatch.setenv("ADZUNA_APP_ID", "")
     monkeypatch.setenv("ADZUNA_APP_KEY", "")
+    monkeypatch.setenv("GREENHOUSE_BOARDS", "[]")
+    monkeypatch.setenv("LEVER_BOARDS", "[]")
 
     with pytest.raises(
         RuntimeError,
-        match="Adzuna credentials are not configured",
+        match="No job sources are configured",
     ):
         run()
+
+    get_settings.cache_clear()
+
+
+def test_worker_does_not_require_adzuna_when_other_source_is_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    get_settings.cache_clear()
+
+    monkeypatch.setenv("ADZUNA_APP_ID", "")
+    monkeypatch.setenv("ADZUNA_APP_KEY", "")
+    monkeypatch.setenv(
+        "LEVER_BOARDS",
+        '["Example Electronics:example-electronics"]',
+    )
+
+    class FakeCycle:
+        def run_cycle(self):
+            from datetime import datetime, timezone
+
+            from packages.application.stats import ApplicationRunStats
+            from packages.observability.models import WorkerRunReport
+
+            now = datetime.now(timezone.utc)
+
+            return WorkerRunReport(
+                started_at=now,
+                completed_at=now,
+                success=True,
+                queries_processed=1,
+                new_jobs=0,
+                evaluated_jobs=0,
+                ignored_jobs=0,
+                application_stats=ApplicationRunStats(),
+            )
+
+    monkeypatch.setattr(
+        "apps.worker.main.build_worker_cycle",
+        lambda settings, session: FakeCycle(),
+    )
+
+    run()
 
     get_settings.cache_clear()
 

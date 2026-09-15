@@ -13,8 +13,6 @@ def test_default_settings() -> None:
     assert settings.email_enabled is False
 
 
-
-
 def test_default_application_execution_mode_is_dry_run() -> None:
     settings = Settings(_env_file=None, api_port=8000)
 
@@ -28,3 +26,41 @@ def test_application_execution_mode_reads_from_environment() -> None:
     )
 
     assert settings.application_execution_mode == ApplicationExecutionMode.FULL_AUTO
+
+
+def test_greenhouse_boards_default_to_empty_list() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.greenhouse_boards == []
+
+
+def test_greenhouse_boards_read_from_environment() -> None:
+    settings = Settings(
+        _env_file=None,
+        greenhouse_boards=[
+            "Example Electronics:example-token",
+            "Another Company:another-token",
+        ],
+    )
+
+    assert settings.greenhouse_boards == [
+        "Example Electronics:example-token",
+        "Another Company:another-token",
+    ]
+
+
+def test_greenhouse_boards_read_from_environment_variable(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv(
+        "GREENHOUSE_BOARDS",
+        '["Texas Instruments:texas-instruments",'
+        '"Example Electronics:example-electronics"]',
+    )
+
+    settings = Settings(_env_file=None)
+
+    assert settings.greenhouse_boards == [
+        "Texas Instruments:texas-instruments",
+        "Example Electronics:example-electronics",
+    ]

@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     ]
     adzuna_pages: int = 1
 
+    greenhouse_boards: list[str] = []
+
     scheduler_discovery_interval_minutes: int = 60
     scheduler_recovery_interval_minutes: int = 30
     llm_enabled: bool = False

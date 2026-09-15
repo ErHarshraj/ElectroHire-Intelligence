@@ -181,3 +181,29 @@ def test_registry_can_create_adzuna_source() -> None:
     assert source.name == "adzuna"
     assert source.source_type == SourceType.JOB
     assert source.query == "embedded hardware"
+
+
+def test_registry_can_create_greenhouse_source() -> None:
+    from packages.job_sources.career.greenhouse import GreenhouseJobSource
+
+    def create_greenhouse_source() -> SourceAdapter:
+        return GreenhouseJobSource(
+            company_name="Example Electronics",
+            board_token="example-token",
+        )
+
+    registry = SourceFactoryRegistry()
+
+    registry.register(
+        name="greenhouse",
+        source_type=SourceType.JOB,
+        factory=create_greenhouse_source,
+    )
+
+    source = registry.get("greenhouse")()
+
+    assert isinstance(source, GreenhouseJobSource)
+    assert source.name == "greenhouse"
+    assert source.source_type == SourceType.JOB
+    assert source.company_name == "Example Electronics"
+    assert source.board_token == "example-token"

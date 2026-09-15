@@ -7,6 +7,10 @@ from packages.common.greenhouse_config import (
     GreenhouseBoardConfig,
     parse_greenhouse_boards,
 )
+from packages.common.lever_config import (
+    LeverBoardConfig,
+    parse_lever_boards,
+)
 
 
 class Settings(BaseSettings):
@@ -49,6 +53,13 @@ class Settings(BaseSettings):
     def greenhouse_board_configs(self) -> list[GreenhouseBoardConfig]:
         """Return parsed Greenhouse career-board configurations."""
         return parse_greenhouse_boards(self.greenhouse_boards)
+
+    lever_boards: list[str] = []
+
+    @property
+    def lever_board_configs(self) -> list[LeverBoardConfig]:
+        """Return parsed Lever career-board configurations."""
+        return parse_lever_boards(self.lever_boards)
 
     scheduler_discovery_interval_minutes: int = 60
     scheduler_recovery_interval_minutes: int = 30

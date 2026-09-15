@@ -1,6 +1,7 @@
 from packages.application.models import ApplicationExecutionMode
 from packages.common.config import Settings
 from packages.common.greenhouse_config import GreenhouseBoardConfig
+from packages.common.lever_config import LeverBoardConfig
 
 
 def test_default_settings() -> None:
@@ -92,3 +93,30 @@ def test_greenhouse_board_configs_are_empty_when_not_configured() -> None:
     settings = Settings(_env_file=None)
 
     assert settings.greenhouse_board_configs == []
+
+
+def test_lever_board_configs_are_parsed() -> None:
+    settings = Settings(
+        _env_file=None,
+        lever_boards=[
+            "Palantir:palantir",
+            "Example Electronics:example-electronics",
+        ],
+    )
+
+    assert settings.lever_board_configs == [
+        LeverBoardConfig(
+            company_name="Palantir",
+            site="palantir",
+        ),
+        LeverBoardConfig(
+            company_name="Example Electronics",
+            site="example-electronics",
+        ),
+    ]
+
+
+def test_lever_board_configs_are_empty_when_not_configured() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.lever_board_configs == []

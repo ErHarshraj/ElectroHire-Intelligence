@@ -8,6 +8,7 @@ from packages.common.config import Settings
 from packages.job_sources.adzuna.client import AdzunaClient
 from packages.job_sources.adzuna.source import AdzunaJobSource
 from packages.job_sources.career.greenhouse import GreenhouseJobSource
+from packages.job_sources.career.lever import LeverJobSource
 from packages.source_factory import SourceFactoryRegistry
 from packages.sources import SourceAdapter, SourceType
 
@@ -21,6 +22,7 @@ def build_job_sources(
 
     Each configured Adzuna query creates one Adzuna source.
     Each configured Greenhouse board creates one Greenhouse source.
+    Each configured Lever board creates one Lever source.
     """
 
     factory_registry = SourceFactoryRegistry()
@@ -46,6 +48,16 @@ def build_job_sources(
             board_token=board_token,
         )
 
+    def create_lever_source(
+        *,
+        company_name: str,
+        site: str,
+    ) -> SourceAdapter:
+        return LeverJobSource(
+            company_name=company_name,
+            site=site,
+        )
+
     factory_registry.register(
         name="adzuna",
         source_type=SourceType.JOB,
@@ -56,6 +68,12 @@ def build_job_sources(
         name="greenhouse",
         source_type=SourceType.JOB,
         factory=create_greenhouse_source,
+    )
+
+    factory_registry.register(
+        name="lever",
+        source_type=SourceType.JOB,
+        factory=create_lever_source,
     )
 
     sources: list[SourceAdapter] = []
@@ -78,6 +96,16 @@ def build_job_sources(
             board_token=board.board_token,
         )
         for board in settings.greenhouse_board_configs
+    )
+
+    lever_factory = factory_registry.get("lever")
+
+    sources.extend(
+        lever_factory(
+            company_name=board.company_name,
+            site=board.site,
+        )
+        for board in settings.lever_board_configs
     )
 
     return sources

@@ -3,6 +3,10 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from packages.application.models import ApplicationExecutionMode
+from packages.common.ashby_config import (
+    AshbyBoardConfig,
+    parse_ashby_boards,
+)
 from packages.common.greenhouse_config import (
     GreenhouseBoardConfig,
     parse_greenhouse_boards,
@@ -60,6 +64,14 @@ class Settings(BaseSettings):
     def lever_board_configs(self) -> list[LeverBoardConfig]:
         """Return parsed Lever career-board configurations."""
         return parse_lever_boards(self.lever_boards)
+
+    ashby_boards: list[str] = []
+
+    @property
+    def ashby_board_configs(self) -> list[AshbyBoardConfig]:
+        """Return parsed Ashby career-board configurations."""
+        return parse_ashby_boards(self.ashby_boards)
+
 
     scheduler_discovery_interval_minutes: int = 60
     scheduler_recovery_interval_minutes: int = 30

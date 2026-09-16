@@ -7,6 +7,7 @@ from __future__ import annotations
 from packages.common.config import Settings
 from packages.job_sources.adzuna.client import AdzunaClient
 from packages.job_sources.adzuna.source import AdzunaJobSource
+from packages.job_sources.career.ashby import AshbyJobSource
 from packages.job_sources.career.greenhouse import GreenhouseJobSource
 from packages.job_sources.career.lever import LeverJobSource
 from packages.source_factory import SourceFactoryRegistry
@@ -25,6 +26,7 @@ def build_job_sources(
 
     Each configured Greenhouse board creates one Greenhouse source.
     Each configured Lever board creates one Lever source.
+    Each configured Ashby board creates one Ashby source.
     """
 
     factory_registry = SourceFactoryRegistry()
@@ -65,6 +67,16 @@ def build_job_sources(
             site=site,
         )
 
+    def create_ashby_source(
+        *,
+        company_name: str,
+        board_name: str,
+    ) -> SourceAdapter:
+        return AshbyJobSource(
+            company_name=company_name,
+            board_name=board_name,
+        )
+
     factory_registry.register(
         name="adzuna",
         source_type=SourceType.JOB,
@@ -81,6 +93,12 @@ def build_job_sources(
         name="lever",
         source_type=SourceType.JOB,
         factory=create_lever_source,
+    )
+
+    factory_registry.register(
+        name="ashby",
+        source_type=SourceType.JOB,
+        factory=create_ashby_source,
     )
 
     sources: list[SourceAdapter] = []
@@ -114,6 +132,16 @@ def build_job_sources(
             site=board.site,
         )
         for board in settings.lever_board_configs
+    )
+
+    ashby_factory = factory_registry.get("ashby")
+
+    sources.extend(
+        ashby_factory(
+            company_name=board.company_name,
+            board_name=board.board_name,
+        )
+        for board in settings.ashby_board_configs
     )
 
     return sources

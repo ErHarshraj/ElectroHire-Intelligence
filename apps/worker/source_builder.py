@@ -10,6 +10,9 @@ from packages.job_sources.adzuna.source import AdzunaJobSource
 from packages.job_sources.career.ashby import AshbyJobSource
 from packages.job_sources.career.greenhouse import GreenhouseJobSource
 from packages.job_sources.career.lever import LeverJobSource
+from packages.job_sources.career.smartrecruiters import (
+    SmartRecruitersJobSource,
+)
 from packages.source_factory import SourceFactoryRegistry
 from packages.sources import SourceAdapter, SourceType
 
@@ -77,6 +80,16 @@ def build_job_sources(
             board_name=board_name,
         )
 
+    def create_smartrecruiters_source(
+        *,
+        company_name: str,
+        company_identifier: str,
+    ) -> SourceAdapter:
+        return SmartRecruitersJobSource(
+            company_name=company_name,
+            company_identifier=company_identifier,
+        )
+
     factory_registry.register(
         name="adzuna",
         source_type=SourceType.JOB,
@@ -99,6 +112,12 @@ def build_job_sources(
         name="ashby",
         source_type=SourceType.JOB,
         factory=create_ashby_source,
+    )
+
+    factory_registry.register(
+        name="smartrecruiters",
+        source_type=SourceType.JOB,
+        factory=create_smartrecruiters_source,
     )
 
     sources: list[SourceAdapter] = []
@@ -142,6 +161,18 @@ def build_job_sources(
             board_name=board.board_name,
         )
         for board in settings.ashby_board_configs
+    )
+
+    smartrecruiters_factory = factory_registry.get(
+        "smartrecruiters"
+    )
+
+    sources.extend(
+        smartrecruiters_factory(
+            company_name=board.company_name,
+            company_identifier=board.company_identifier,
+        )
+        for board in settings.smartrecruiters_board_configs
     )
 
     return sources

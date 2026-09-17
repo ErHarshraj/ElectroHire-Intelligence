@@ -15,6 +15,10 @@ from packages.common.lever_config import (
     LeverBoardConfig,
     parse_lever_boards,
 )
+from packages.common.smartrecruiters_config import (
+    SmartRecruitersBoardConfig,
+    parse_smartrecruiters_boards,
+)
 
 
 class Settings(BaseSettings):
@@ -71,6 +75,17 @@ class Settings(BaseSettings):
     def ashby_board_configs(self) -> list[AshbyBoardConfig]:
         """Return parsed Ashby career-board configurations."""
         return parse_ashby_boards(self.ashby_boards)
+
+    smartrecruiters_boards: list[str] = []
+
+    @property
+    def smartrecruiters_board_configs(
+        self,
+    ) -> list[SmartRecruitersBoardConfig]:
+        """Return parsed SmartRecruiters career-board configurations."""
+        return parse_smartrecruiters_boards(
+            self.smartrecruiters_boards
+        )
 
 
     scheduler_discovery_interval_minutes: int = 60

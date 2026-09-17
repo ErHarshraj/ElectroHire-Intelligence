@@ -221,3 +221,36 @@ def test_build_job_sources_skips_adzuna_without_client() -> None:
 
     assert len(sources) == 1
     assert isinstance(sources[0], GreenhouseJobSource)
+
+
+def test_build_job_sources_creates_smartrecruiters_without_adzuna_client():
+    settings = Settings(
+        adzuna_app_id=None,
+        adzuna_app_key=None,
+        smartrecruiters_boards=[
+            "Example Corp:examplecorp"
+        ],
+    )
+
+    sources = build_job_sources(
+        settings=settings,
+        adzuna_client=None,
+    )
+
+    assert len(sources) == 1
+    assert sources[0].name == "smartrecruiters:examplecorp"
+
+
+def test_build_job_sources_skips_smartrecruiters_when_not_configured():
+    settings = Settings(
+        adzuna_app_id=None,
+        adzuna_app_key=None,
+        smartrecruiters_boards=[],
+    )
+
+    sources = build_job_sources(
+        settings=settings,
+        adzuna_client=None,
+    )
+
+    assert sources == []

@@ -15,6 +15,8 @@ from packages.job_sources.career.smartrecruiters import (
 )
 from packages.job_sources.himalayas.client import HimalayasClient
 from packages.job_sources.himalayas.source import HimalayasJobSource
+from packages.job_sources.remoteok.client import RemoteOKClient
+from packages.job_sources.remoteok.source import RemoteOKJobSource
 from packages.source_factory import SourceFactoryRegistry
 from packages.sources import SourceAdapter, SourceType
 
@@ -35,8 +37,8 @@ def build_job_sources(
     Each configured SmartRecruiters board creates one
     SmartRecruiters source.
     Each configured Himalayas source creates one Himalayas source.
+    Each configured Remote OK source creates one Remote OK source.
     """
-
     factory_registry = SourceFactoryRegistry()
 
     def create_adzuna_source(
@@ -104,6 +106,9 @@ def build_job_sources(
             limit=limit,
         )
 
+    def create_remoteok_source() -> SourceAdapter:
+        return RemoteOKJobSource(client=RemoteOKClient())
+
     factory_registry.register(
         name="adzuna",
         source_type=SourceType.JOB,
@@ -138,6 +143,12 @@ def build_job_sources(
         name="himalayas",
         source_type=SourceType.JOB,
         factory=create_himalayas_source,
+    )
+
+    factory_registry.register(
+        name="remoteok",
+        source_type=SourceType.JOB,
+        factory=create_remoteok_source,
     )
 
     sources: list[SourceAdapter] = []
@@ -202,6 +213,13 @@ def build_job_sources(
             limit=source.limit,
         )
         for source in settings.himalayas_source_configs
+    )
+
+    remoteok_factory = factory_registry.get("remoteok")
+
+    sources.extend(
+        remoteok_factory()
+        for _ in settings.remoteok_source_configs
     )
 
     return sources

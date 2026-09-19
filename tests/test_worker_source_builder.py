@@ -6,6 +6,7 @@ from packages.job_sources.adzuna.source import AdzunaJobSource
 from packages.job_sources.career.greenhouse import GreenhouseJobSource
 from packages.job_sources.career.lever import LeverJobSource
 from packages.job_sources.himalayas.source import HimalayasJobSource
+from packages.job_sources.remoteok.source import RemoteOKJobSource
 
 
 def test_build_job_sources_creates_adzuna_sources() -> None:
@@ -232,6 +233,7 @@ def test_build_job_sources_creates_smartrecruiters_without_adzuna_client():
             "Example Corp:examplecorp"
         ],
         himalayas_sources=[],
+        remoteok_sources=[],
     )
 
     sources = build_job_sources(
@@ -249,6 +251,7 @@ def test_build_job_sources_skips_smartrecruiters_when_not_configured():
         adzuna_app_key=None,
         smartrecruiters_boards=[],
         himalayas_sources=[],
+        remoteok_sources=[],
     )
 
     sources = build_job_sources(
@@ -282,3 +285,22 @@ def test_build_job_sources_creates_himalayas_sources() -> None:
 
     assert sources[1].name == "himalayas"
     assert sources[1].limit == 100
+
+
+def test_build_job_sources_creates_remoteok_sources() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        greenhouse_boards=[],
+        lever_boards=[],
+        ashby_boards=[],
+        smartrecruiters_boards=[],
+        himalayas_sources=[],
+        remoteok_sources=["remoteok"],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert len(sources) == 1
+    assert isinstance(sources[0], RemoteOKJobSource)
+    assert sources[0].name == "remoteok"

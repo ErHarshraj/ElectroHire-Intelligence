@@ -19,6 +19,10 @@ from packages.common.lever_config import (
     LeverBoardConfig,
     parse_lever_boards,
 )
+from packages.common.remoteok_config import (
+    RemoteOKConfig,
+    parse_remoteok_sources,
+)
 from packages.common.smartrecruiters_config import (
     SmartRecruitersBoardConfig,
     parse_smartrecruiters_boards,
@@ -95,6 +99,13 @@ class Settings(BaseSettings):
     def himalayas_source_configs(self) -> list[HimalayasConfig]:
         """Return parsed Himalayas source configurations."""
         return parse_himalayas_sources(self.himalayas_sources)
+
+    remoteok_sources: list[str] = []
+
+    @property
+    def remoteok_source_configs(self) -> list[RemoteOKConfig]:
+        """Return parsed Remote OK source configurations."""
+        return parse_remoteok_sources(self.remoteok_sources)
 
     scheduler_discovery_interval_minutes: int = 60
     scheduler_recovery_interval_minutes: int = 30

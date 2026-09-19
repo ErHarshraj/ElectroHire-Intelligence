@@ -13,6 +13,8 @@ from packages.job_sources.career.lever import LeverJobSource
 from packages.job_sources.career.smartrecruiters import (
     SmartRecruitersJobSource,
 )
+from packages.job_sources.himalayas.client import HimalayasClient
+from packages.job_sources.himalayas.source import HimalayasJobSource
 from packages.source_factory import SourceFactoryRegistry
 from packages.sources import SourceAdapter, SourceType
 
@@ -30,6 +32,9 @@ def build_job_sources(
     Each configured Greenhouse board creates one Greenhouse source.
     Each configured Lever board creates one Lever source.
     Each configured Ashby board creates one Ashby source.
+    Each configured SmartRecruiters board creates one
+    SmartRecruiters source.
+    Each configured Himalayas source creates one Himalayas source.
     """
 
     factory_registry = SourceFactoryRegistry()
@@ -90,6 +95,15 @@ def build_job_sources(
             company_identifier=company_identifier,
         )
 
+    def create_himalayas_source(
+        *,
+        limit: int,
+    ) -> SourceAdapter:
+        return HimalayasJobSource(
+            client=HimalayasClient(),
+            limit=limit,
+        )
+
     factory_registry.register(
         name="adzuna",
         source_type=SourceType.JOB,
@@ -118,6 +132,12 @@ def build_job_sources(
         name="smartrecruiters",
         source_type=SourceType.JOB,
         factory=create_smartrecruiters_source,
+    )
+
+    factory_registry.register(
+        name="himalayas",
+        source_type=SourceType.JOB,
+        factory=create_himalayas_source,
     )
 
     sources: list[SourceAdapter] = []
@@ -173,6 +193,15 @@ def build_job_sources(
             company_identifier=board.company_identifier,
         )
         for board in settings.smartrecruiters_board_configs
+    )
+
+    himalayas_factory = factory_registry.get("himalayas")
+
+    sources.extend(
+        himalayas_factory(
+            limit=source.limit,
+        )
+        for source in settings.himalayas_source_configs
     )
 
     return sources

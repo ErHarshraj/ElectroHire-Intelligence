@@ -16,6 +16,7 @@ def test_worker_requires_at_least_one_job_source(
     monkeypatch.setenv("ADZUNA_APP_KEY", "")
     monkeypatch.setenv("GREENHOUSE_BOARDS", "[]")
     monkeypatch.setenv("LEVER_BOARDS", "[]")
+    monkeypatch.setenv("HIMALAYAS_SOURCES", "[]")
 
     with pytest.raises(
         RuntimeError,

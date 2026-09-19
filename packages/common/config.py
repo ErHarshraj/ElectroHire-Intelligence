@@ -11,6 +11,10 @@ from packages.common.greenhouse_config import (
     GreenhouseBoardConfig,
     parse_greenhouse_boards,
 )
+from packages.common.himalayas_config import (
+    HimalayasConfig,
+    parse_himalayas_sources,
+)
 from packages.common.lever_config import (
     LeverBoardConfig,
     parse_lever_boards,
@@ -83,10 +87,14 @@ class Settings(BaseSettings):
         self,
     ) -> list[SmartRecruitersBoardConfig]:
         """Return parsed SmartRecruiters career-board configurations."""
-        return parse_smartrecruiters_boards(
-            self.smartrecruiters_boards
-        )
+        return parse_smartrecruiters_boards(self.smartrecruiters_boards)
 
+    himalayas_sources: list[str] = []
+
+    @property
+    def himalayas_source_configs(self) -> list[HimalayasConfig]:
+        """Return parsed Himalayas source configurations."""
+        return parse_himalayas_sources(self.himalayas_sources)
 
     scheduler_discovery_interval_minutes: int = 60
     scheduler_recovery_interval_minutes: int = 30

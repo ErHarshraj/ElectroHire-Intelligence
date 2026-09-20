@@ -15,6 +15,8 @@ from packages.job_sources.career.smartrecruiters import (
 )
 from packages.job_sources.himalayas.client import HimalayasClient
 from packages.job_sources.himalayas.source import HimalayasJobSource
+from packages.job_sources.jobicy.client import JobicyClient
+from packages.job_sources.jobicy.source import JobicyJobSource
 from packages.job_sources.remoteok.client import RemoteOKClient
 from packages.job_sources.remoteok.source import RemoteOKJobSource
 from packages.source_factory import SourceFactoryRegistry
@@ -37,6 +39,7 @@ def build_job_sources(
     Each configured SmartRecruiters board creates one
     SmartRecruiters source.
     Each configured Himalayas source creates one Himalayas source.
+    Each configured Jobicy source creates one Jobicy source.
     Each configured Remote OK source creates one Remote OK source.
     """
     factory_registry = SourceFactoryRegistry()
@@ -106,6 +109,15 @@ def build_job_sources(
             limit=limit,
         )
 
+    def create_jobicy_source(
+        *,
+        count: int,
+    ) -> SourceAdapter:
+        return JobicyJobSource(
+            client=JobicyClient(),
+            count=count,
+        )
+
     def create_remoteok_source() -> SourceAdapter:
         return RemoteOKJobSource(client=RemoteOKClient())
 
@@ -143,6 +155,12 @@ def build_job_sources(
         name="himalayas",
         source_type=SourceType.JOB,
         factory=create_himalayas_source,
+    )
+
+    factory_registry.register(
+        name="jobicy",
+        source_type=SourceType.JOB,
+        factory=create_jobicy_source,
     )
 
     factory_registry.register(
@@ -220,6 +238,15 @@ def build_job_sources(
     sources.extend(
         remoteok_factory()
         for _ in settings.remoteok_source_configs
+    )
+
+    jobicy_factory = factory_registry.get("jobicy")
+
+    sources.extend(
+        jobicy_factory(
+            count=source.count,
+        )
+        for source in settings.jobicy_source_configs
     )
 
     return sources

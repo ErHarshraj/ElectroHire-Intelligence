@@ -15,6 +15,10 @@ from packages.common.himalayas_config import (
     HimalayasConfig,
     parse_himalayas_sources,
 )
+from packages.common.jobicy_config import (
+    JobicyConfig,
+    parse_jobicy_sources,
+)
 from packages.common.lever_config import (
     LeverBoardConfig,
     parse_lever_boards,
@@ -106,6 +110,13 @@ class Settings(BaseSettings):
     def remoteok_source_configs(self) -> list[RemoteOKConfig]:
         """Return parsed Remote OK source configurations."""
         return parse_remoteok_sources(self.remoteok_sources)
+
+    jobicy_sources: list[str] = []
+
+    @property
+    def jobicy_source_configs(self) -> list[JobicyConfig]:
+        """Return parsed Jobicy source configurations."""
+        return parse_jobicy_sources(self.jobicy_sources)
 
     scheduler_discovery_interval_minutes: int = 60
     scheduler_recovery_interval_minutes: int = 30

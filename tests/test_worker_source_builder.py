@@ -6,6 +6,7 @@ from packages.job_sources.adzuna.source import AdzunaJobSource
 from packages.job_sources.career.greenhouse import GreenhouseJobSource
 from packages.job_sources.career.lever import LeverJobSource
 from packages.job_sources.himalayas.source import HimalayasJobSource
+from packages.job_sources.jobicy.source import JobicyJobSource
 from packages.job_sources.remoteok.source import RemoteOKJobSource
 
 
@@ -304,3 +305,34 @@ def test_build_job_sources_creates_remoteok_sources() -> None:
     assert len(sources) == 1
     assert isinstance(sources[0], RemoteOKJobSource)
     assert sources[0].name == "remoteok"
+
+
+def test_build_job_sources_creates_jobicy_sources() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        greenhouse_boards=[],
+        lever_boards=[],
+        ashby_boards=[],
+        smartrecruiters_boards=[],
+        himalayas_sources=[],
+        remoteok_sources=[],
+        jobicy_sources=[
+            "jobicy:50",
+            "jobicy-large:100",
+        ],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert len(sources) == 2
+    assert all(
+        isinstance(source, JobicyJobSource)
+        for source in sources
+    )
+
+    assert sources[0].name == "jobicy"
+    assert sources[0].count == 50
+
+    assert sources[1].name == "jobicy"
+    assert sources[1].count == 100

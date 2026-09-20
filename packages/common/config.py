@@ -3,6 +3,10 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from packages.application.models import ApplicationExecutionMode
+from packages.common.arbeitnow_config import (
+    ArbeitnowConfig,
+    parse_arbeitnow_sources,
+)
 from packages.common.ashby_config import (
     AshbyBoardConfig,
     parse_ashby_boards,
@@ -117,6 +121,14 @@ class Settings(BaseSettings):
     def jobicy_source_configs(self) -> list[JobicyConfig]:
         """Return parsed Jobicy source configurations."""
         return parse_jobicy_sources(self.jobicy_sources)
+
+    arbeitnow_sources: list[str] = []
+
+    @property
+    def arbeitnow_source_configs(self) -> list[ArbeitnowConfig]:
+        """Return parsed Arbeitnow source configurations."""
+        return parse_arbeitnow_sources(self.arbeitnow_sources)
+
 
     scheduler_discovery_interval_minutes: int = 60
     scheduler_recovery_interval_minutes: int = 30

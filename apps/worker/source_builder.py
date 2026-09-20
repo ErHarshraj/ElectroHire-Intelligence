@@ -7,6 +7,8 @@ from __future__ import annotations
 from packages.common.config import Settings
 from packages.job_sources.adzuna.client import AdzunaClient
 from packages.job_sources.adzuna.source import AdzunaJobSource
+from packages.job_sources.arbeitnow.client import ArbeitnowClient
+from packages.job_sources.arbeitnow.source import ArbeitnowJobSource
 from packages.job_sources.career.ashby import AshbyJobSource
 from packages.job_sources.career.greenhouse import GreenhouseJobSource
 from packages.job_sources.career.lever import LeverJobSource
@@ -40,6 +42,7 @@ def build_job_sources(
     SmartRecruiters source.
     Each configured Himalayas source creates one Himalayas source.
     Each configured Jobicy source creates one Jobicy source.
+    Each configured Arbeitnow source creates one Arbeitnow source.
     Each configured Remote OK source creates one Remote OK source.
     """
     factory_registry = SourceFactoryRegistry()
@@ -118,6 +121,15 @@ def build_job_sources(
             count=count,
         )
 
+    def create_arbeitnow_source(
+        *,
+        pages: int,
+    ) -> SourceAdapter:
+        return ArbeitnowJobSource(
+            client=ArbeitnowClient(),
+            pages=pages,
+        )
+
     def create_remoteok_source() -> SourceAdapter:
         return RemoteOKJobSource(client=RemoteOKClient())
 
@@ -161,6 +173,12 @@ def build_job_sources(
         name="jobicy",
         source_type=SourceType.JOB,
         factory=create_jobicy_source,
+    )
+
+    factory_registry.register(
+        name="arbeitnow",
+        source_type=SourceType.JOB,
+        factory=create_arbeitnow_source,
     )
 
     factory_registry.register(
@@ -247,6 +265,15 @@ def build_job_sources(
             count=source.count,
         )
         for source in settings.jobicy_source_configs
+    )
+
+    arbeitnow_factory = factory_registry.get("arbeitnow")
+
+    sources.extend(
+        arbeitnow_factory(
+            pages=source.pages,
+        )
+        for source in settings.arbeitnow_source_configs
     )
 
     return sources

@@ -3,6 +3,7 @@ from unittest.mock import Mock
 from apps.worker.source_builder import build_job_sources
 from packages.common.config import Settings
 from packages.job_sources.adzuna.source import AdzunaJobSource
+from packages.job_sources.arbeitnow.source import ArbeitnowJobSource
 from packages.job_sources.career.greenhouse import GreenhouseJobSource
 from packages.job_sources.career.lever import LeverJobSource
 from packages.job_sources.himalayas.source import HimalayasJobSource
@@ -336,3 +337,53 @@ def test_build_job_sources_creates_jobicy_sources() -> None:
 
     assert sources[1].name == "jobicy"
     assert sources[1].count == 100
+
+
+def test_build_job_sources_creates_arbeitnow_sources() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        arbeitnow_sources=["arbeitnow:2"],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert len(sources) == 1
+    assert isinstance(sources[0], ArbeitnowJobSource)
+    assert sources[0].pages == 2
+
+
+def test_build_job_sources_creates_multiple_arbeitnow_sources() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        arbeitnow_sources=[
+            "arbeitnow:1",
+            "arbeitnow:3",
+        ],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert len(sources) == 2
+    assert all(
+        isinstance(source, ArbeitnowJobSource)
+        for source in sources
+    )
+    assert sources[0].pages == 1
+    assert sources[1].pages == 3
+
+
+def test_build_job_sources_has_no_arbeitnow_sources_when_unconfigured() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        arbeitnow_sources=[],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert not any(
+        isinstance(source, ArbeitnowJobSource)
+        for source in sources
+    )

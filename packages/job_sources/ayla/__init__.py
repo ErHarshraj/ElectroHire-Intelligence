@@ -1,0 +1,1 @@
+"""AylaGov job source adapter."""

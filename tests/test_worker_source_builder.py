@@ -4,6 +4,7 @@ from apps.worker.source_builder import build_job_sources
 from packages.common.config import Settings
 from packages.job_sources.adzuna.source import AdzunaJobSource
 from packages.job_sources.arbeitnow.source import ArbeitnowJobSource
+from packages.job_sources.ayla.source import AylaJobSource
 from packages.job_sources.career.greenhouse import GreenhouseJobSource
 from packages.job_sources.career.lever import LeverJobSource
 from packages.job_sources.fourdayweek.source import FourDayWeekJobSource
@@ -390,6 +391,33 @@ def test_build_job_sources_has_no_arbeitnow_sources_when_unconfigured() -> None:
         isinstance(source, ArbeitnowJobSource)
         for source in sources
     )
+
+
+def test_build_job_sources_creates_ayla_sources() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        ayla_sources=[
+            "electronics:50",
+            "embedded:75",
+        ],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert len(sources) == 2
+    assert all(
+        isinstance(source, AylaJobSource)
+        for source in sources
+    )
+
+    assert sources[0].name == "ayla"
+    assert sources[0].query == "electronics"
+    assert sources[0].limit == 50
+
+    assert sources[1].name == "ayla"
+    assert sources[1].query == "embedded"
+    assert sources[1].limit == 75
 
 
 def test_build_job_sources_creates_workday_sources() -> None:

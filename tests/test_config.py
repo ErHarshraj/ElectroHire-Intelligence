@@ -1,4 +1,5 @@
 from packages.application.models import ApplicationExecutionMode
+from packages.common.ayla_config import AylaConfig
 from packages.common.config import Settings
 from packages.common.greenhouse_config import GreenhouseBoardConfig
 from packages.common.lever_config import LeverBoardConfig
@@ -138,3 +139,30 @@ def test_fourdayweek_source_configs_are_empty_when_not_configured() -> None:
     settings = Settings(_env_file=None)
 
     assert settings.fourdayweek_source_configs == []
+
+
+def test_ayla_source_configs_are_parsed() -> None:
+    settings = Settings(
+        _env_file=None,
+        ayla_sources=[
+            "electronics",
+            "embedded:75",
+        ],
+    )
+
+    assert settings.ayla_source_configs == [
+        AylaConfig(
+            query="electronics",
+            limit=100,
+        ),
+        AylaConfig(
+            query="embedded",
+            limit=75,
+        ),
+    ]
+
+
+def test_ayla_source_configs_are_empty_when_not_configured() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.ayla_source_configs == []

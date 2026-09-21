@@ -11,6 +11,10 @@ from packages.common.ashby_config import (
     AshbyBoardConfig,
     parse_ashby_boards,
 )
+from packages.common.ayla_config import (
+    AylaConfig,
+    parse_ayla_sources,
+)
 from packages.common.fourdayweek_config import (
     FourDayWeekConfig,
     parse_fourdayweek_sources,
@@ -152,6 +156,14 @@ class Settings(BaseSettings):
         """Return parsed 4dayweek.io source configurations."""
         return parse_fourdayweek_sources(self.fourdayweek_sources)
 
+
+
+    ayla_sources: list[str] = []
+
+    @property
+    def ayla_source_configs(self) -> list[AylaConfig]:
+        """Return parsed AylaGov source configurations."""
+        return parse_ayla_sources(self.ayla_sources)
 
 
     arbeitnow_sources: list[str] = []

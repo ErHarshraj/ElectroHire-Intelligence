@@ -10,6 +10,8 @@ from packages.job_sources.adzuna.client import AdzunaClient
 from packages.job_sources.adzuna.source import AdzunaJobSource
 from packages.job_sources.arbeitnow.client import ArbeitnowClient
 from packages.job_sources.arbeitnow.source import ArbeitnowJobSource
+from packages.job_sources.ayla.client import AylaClient
+from packages.job_sources.ayla.source import AylaJobSource
 from packages.job_sources.career.ashby import AshbyJobSource
 from packages.job_sources.career.greenhouse import GreenhouseJobSource
 from packages.job_sources.career.lever import LeverJobSource
@@ -149,6 +151,18 @@ def build_job_sources(
         )
 
 
+    def create_ayla_source(
+        *,
+        query: str,
+        limit: int,
+    ) -> SourceAdapter:
+        return AylaJobSource(
+            client=AylaClient(),
+            query=query,
+            limit=limit,
+        )
+
+
     def create_arbeitnow_source(
         *,
         pages: int,
@@ -242,6 +256,12 @@ def build_job_sources(
         name="fourdayweek",
         source_type=SourceType.JOB,
         factory=create_fourdayweek_source,
+    )
+
+    factory_registry.register(
+        name="ayla",
+        source_type=SourceType.JOB,
+        factory=create_ayla_source,
     )
 
     factory_registry.register(
@@ -365,6 +385,16 @@ def build_job_sources(
             limit=source.limit,
         )
         for source in settings.fourdayweek_source_configs
+    )
+
+    ayla_factory = factory_registry.get("ayla")
+
+    sources.extend(
+        ayla_factory(
+            query=source.query,
+            limit=source.limit,
+        )
+        for source in settings.ayla_source_configs
     )
 
     arbeitnow_factory = factory_registry.get("arbeitnow")

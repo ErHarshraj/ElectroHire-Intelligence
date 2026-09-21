@@ -35,6 +35,10 @@ from packages.common.smartrecruiters_config import (
     SmartRecruitersBoardConfig,
     parse_smartrecruiters_boards,
 )
+from packages.common.workable_config import (
+    WorkableConfig,
+    parse_workable_sources,
+)
 from packages.common.workday_config import (
     WorkdayConfig,
     parse_workday_sources,
@@ -132,6 +136,14 @@ class Settings(BaseSettings):
     def arbeitnow_source_configs(self) -> list[ArbeitnowConfig]:
         """Return parsed Arbeitnow source configurations."""
         return parse_arbeitnow_sources(self.arbeitnow_sources)
+
+
+    workable_sources: list[str] = []
+
+    @property
+    def workable_source_configs(self) -> list[WorkableConfig]:
+        """Return parsed Workable career-account configurations."""
+        return parse_workable_sources(self.workable_sources)
 
 
     workday_sources: list[str] = []

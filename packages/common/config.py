@@ -35,6 +35,10 @@ from packages.common.smartrecruiters_config import (
     SmartRecruitersBoardConfig,
     parse_smartrecruiters_boards,
 )
+from packages.common.workday_config import (
+    WorkdayConfig,
+    parse_workday_sources,
+)
 
 
 class Settings(BaseSettings):
@@ -129,6 +133,13 @@ class Settings(BaseSettings):
         """Return parsed Arbeitnow source configurations."""
         return parse_arbeitnow_sources(self.arbeitnow_sources)
 
+
+    workday_sources: list[str] = []
+
+    @property
+    def workday_source_configs(self) -> list[WorkdayConfig]:
+        """Return parsed Workday career-board configurations."""
+        return parse_workday_sources(self.workday_sources)
 
     scheduler_discovery_interval_minutes: int = 60
     scheduler_recovery_interval_minutes: int = 30

@@ -20,6 +20,7 @@ def test_worker_requires_at_least_one_job_source(
     monkeypatch.setenv("REMOTEOK_SOURCES", "[]")
     monkeypatch.setenv("JOBICY_SOURCES", "[]")
     monkeypatch.setenv("ARBEITNOW_SOURCES", "[]")
+    monkeypatch.setenv("WORKDAY_SOURCES", "[]")
 
     with pytest.raises(
         RuntimeError,

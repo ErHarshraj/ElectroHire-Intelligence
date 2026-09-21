@@ -21,6 +21,8 @@ from packages.job_sources.jobicy.client import JobicyClient
 from packages.job_sources.jobicy.source import JobicyJobSource
 from packages.job_sources.remoteok.client import RemoteOKClient
 from packages.job_sources.remoteok.source import RemoteOKJobSource
+from packages.job_sources.workday.client import WorkdayClient
+from packages.job_sources.workday.source import WorkdayJobSource
 from packages.source_factory import SourceFactoryRegistry
 from packages.sources import SourceAdapter, SourceType
 
@@ -130,6 +132,24 @@ def build_job_sources(
             pages=pages,
         )
 
+    def create_workday_source(
+        *,
+        tenant: str,
+        base_url: str,
+        site: str,
+        company_name: str,
+        batches: int,
+    ) -> SourceAdapter:
+        return WorkdayJobSource(
+            client=WorkdayClient(
+                base_url=base_url,
+                tenant=tenant,
+                site=site,
+            ),
+            company_name=company_name,
+            batches=batches,
+        )
+
     def create_remoteok_source() -> SourceAdapter:
         return RemoteOKJobSource(client=RemoteOKClient())
 
@@ -185,6 +205,12 @@ def build_job_sources(
         name="remoteok",
         source_type=SourceType.JOB,
         factory=create_remoteok_source,
+    )
+
+    factory_registry.register(
+        name="workday",
+        source_type=SourceType.JOB,
+        factory=create_workday_source,
     )
 
     sources: list[SourceAdapter] = []
@@ -274,6 +300,19 @@ def build_job_sources(
             pages=source.pages,
         )
         for source in settings.arbeitnow_source_configs
+    )
+
+    workday_factory = factory_registry.get("workday")
+
+    sources.extend(
+        workday_factory(
+            tenant=source.tenant,
+            base_url=source.base_url,
+            site=source.site,
+            company_name=source.company_name,
+            batches=source.batches,
+        )
+        for source in settings.workday_source_configs
     )
 
     return sources

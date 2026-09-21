@@ -9,6 +9,7 @@ from packages.job_sources.career.lever import LeverJobSource
 from packages.job_sources.himalayas.source import HimalayasJobSource
 from packages.job_sources.jobicy.source import JobicyJobSource
 from packages.job_sources.remoteok.source import RemoteOKJobSource
+from packages.job_sources.workday.source import WorkdayJobSource
 
 
 def test_build_job_sources_creates_adzuna_sources() -> None:
@@ -387,3 +388,70 @@ def test_build_job_sources_has_no_arbeitnow_sources_when_unconfigured() -> None:
         isinstance(source, ArbeitnowJobSource)
         for source in sources
     )
+
+
+def test_build_job_sources_creates_workday_sources() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        workday_sources=[
+            "analogdevices|https://analogdevices.wd1.myworkdayjobs.com"
+            "|External|Analog Devices|3",
+        ],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert len(sources) == 1
+    assert isinstance(sources[0], WorkdayJobSource)
+    assert sources[0].name == "workday"
+    assert sources[0].company_name == "Analog Devices"
+    assert sources[0].batches == 3
+
+    assert sources[0].client.tenant == "analogdevices"
+    assert (
+        sources[0].client.base_url
+        == "https://analogdevices.wd1.myworkdayjobs.com"
+    )
+    assert sources[0].client.site == "External"
+
+
+def test_build_job_sources_creates_multiple_workday_sources() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        workday_sources=[
+            "analogdevices|https://analogdevices.wd1.myworkdayjobs.com"
+            "|External|Analog Devices|3",
+            "ti|https://ti.wd1.myworkdayjobs.com"
+            "|External|Texas Instruments|5",
+        ],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert len(sources) == 2
+    assert all(
+        isinstance(source, WorkdayJobSource)
+        for source in sources
+    )
+
+    assert sources[0].company_name == "Analog Devices"
+    assert sources[0].batches == 3
+    assert sources[0].client.tenant == "analogdevices"
+
+    assert sources[1].company_name == "Texas Instruments"
+    assert sources[1].batches == 5
+    assert sources[1].client.tenant == "ti"
+
+
+def test_build_job_sources_has_no_workday_sources_when_unconfigured() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        workday_sources=[],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert sources == []

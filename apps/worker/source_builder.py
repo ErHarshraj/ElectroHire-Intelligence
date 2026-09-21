@@ -5,6 +5,7 @@ Build configured job sources for the worker.
 from __future__ import annotations
 
 from packages.common.config import Settings
+from packages.common.hopin_config import HopinConfig
 from packages.job_sources.adzuna.client import AdzunaClient
 from packages.job_sources.adzuna.source import AdzunaJobSource
 from packages.job_sources.arbeitnow.client import ArbeitnowClient
@@ -17,6 +18,8 @@ from packages.job_sources.career.smartrecruiters import (
 )
 from packages.job_sources.himalayas.client import HimalayasClient
 from packages.job_sources.himalayas.source import HimalayasJobSource
+from packages.job_sources.hopin.client import HopinClient
+from packages.job_sources.hopin.source import HopinJobSource
 from packages.job_sources.jobicy.client import JobicyClient
 from packages.job_sources.jobicy.source import JobicyJobSource
 from packages.job_sources.remoteok.client import RemoteOKClient
@@ -125,6 +128,15 @@ def build_job_sources(
             count=count,
         )
 
+    def create_hopin_source(
+        *,
+        config: HopinConfig,
+    ) -> SourceAdapter:
+        return HopinJobSource(
+            client=HopinClient(),
+            config=config,
+        )
+
     def create_arbeitnow_source(
         *,
         pages: int,
@@ -206,6 +218,12 @@ def build_job_sources(
         name="jobicy",
         source_type=SourceType.JOB,
         factory=create_jobicy_source,
+    )
+
+    factory_registry.register(
+        name="hopin",
+        source_type=SourceType.JOB,
+        factory=create_hopin_source,
     )
 
     factory_registry.register(
@@ -311,6 +329,15 @@ def build_job_sources(
             count=source.count,
         )
         for source in settings.jobicy_source_configs
+    )
+
+    hopin_factory = factory_registry.get("hopin")
+
+    sources.extend(
+        hopin_factory(
+            config=source,
+        )
+        for source in settings.hopin_source_configs
     )
 
     arbeitnow_factory = factory_registry.get("arbeitnow")

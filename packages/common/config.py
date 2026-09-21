@@ -19,6 +19,10 @@ from packages.common.himalayas_config import (
     HimalayasConfig,
     parse_himalayas_sources,
 )
+from packages.common.hopin_config import (
+    HopinConfig,
+    parse_hopin_sources,
+)
 from packages.common.jobicy_config import (
     JobicyConfig,
     parse_jobicy_sources,
@@ -129,6 +133,14 @@ class Settings(BaseSettings):
     def jobicy_source_configs(self) -> list[JobicyConfig]:
         """Return parsed Jobicy source configurations."""
         return parse_jobicy_sources(self.jobicy_sources)
+
+    hopin_sources: list[str] = []
+
+    @property
+    def hopin_source_configs(self) -> list[HopinConfig]:
+        """Return parsed Hopin source configurations."""
+        return parse_hopin_sources(self.hopin_sources)
+
 
     arbeitnow_sources: list[str] = []
 

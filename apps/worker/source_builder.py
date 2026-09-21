@@ -16,6 +16,8 @@ from packages.job_sources.career.lever import LeverJobSource
 from packages.job_sources.career.smartrecruiters import (
     SmartRecruitersJobSource,
 )
+from packages.job_sources.fourdayweek.client import FourDayWeekClient
+from packages.job_sources.fourdayweek.source import FourDayWeekJobSource
 from packages.job_sources.himalayas.client import HimalayasClient
 from packages.job_sources.himalayas.source import HimalayasJobSource
 from packages.job_sources.hopin.client import HopinClient
@@ -137,6 +139,16 @@ def build_job_sources(
             config=config,
         )
 
+    def create_fourdayweek_source(
+        *,
+        limit: int,
+    ) -> SourceAdapter:
+        return FourDayWeekJobSource(
+            client=FourDayWeekClient(),
+            limit=limit,
+        )
+
+
     def create_arbeitnow_source(
         *,
         pages: int,
@@ -224,6 +236,12 @@ def build_job_sources(
         name="hopin",
         source_type=SourceType.JOB,
         factory=create_hopin_source,
+    )
+
+    factory_registry.register(
+        name="fourdayweek",
+        source_type=SourceType.JOB,
+        factory=create_fourdayweek_source,
     )
 
     factory_registry.register(
@@ -338,6 +356,15 @@ def build_job_sources(
             config=source,
         )
         for source in settings.hopin_source_configs
+    )
+
+    fourdayweek_factory = factory_registry.get("fourdayweek")
+
+    sources.extend(
+        fourdayweek_factory(
+            limit=source.limit,
+        )
+        for source in settings.fourdayweek_source_configs
     )
 
     arbeitnow_factory = factory_registry.get("arbeitnow")

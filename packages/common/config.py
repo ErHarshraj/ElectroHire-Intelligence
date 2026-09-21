@@ -11,6 +11,10 @@ from packages.common.ashby_config import (
     AshbyBoardConfig,
     parse_ashby_boards,
 )
+from packages.common.fourdayweek_config import (
+    FourDayWeekConfig,
+    parse_fourdayweek_sources,
+)
 from packages.common.greenhouse_config import (
     GreenhouseBoardConfig,
     parse_greenhouse_boards,
@@ -140,6 +144,14 @@ class Settings(BaseSettings):
     def hopin_source_configs(self) -> list[HopinConfig]:
         """Return parsed Hopin source configurations."""
         return parse_hopin_sources(self.hopin_sources)
+
+    fourdayweek_sources: list[str] = []
+
+    @property
+    def fourdayweek_source_configs(self) -> list[FourDayWeekConfig]:
+        """Return parsed 4dayweek.io source configurations."""
+        return parse_fourdayweek_sources(self.fourdayweek_sources)
+
 
 
     arbeitnow_sources: list[str] = []

@@ -120,3 +120,21 @@ def test_lever_board_configs_are_empty_when_not_configured() -> None:
     settings = Settings(_env_file=None)
 
     assert settings.lever_board_configs == []
+
+
+def test_fourdayweek_source_configs_are_parsed() -> None:
+    settings = Settings(
+        _env_file=None,
+        fourdayweek_sources=["50", "100"],
+    )
+
+    assert [config.limit for config in settings.fourdayweek_source_configs] == [
+        50,
+        100,
+    ]
+
+
+def test_fourdayweek_source_configs_are_empty_when_not_configured() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.fourdayweek_source_configs == []

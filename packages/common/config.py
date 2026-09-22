@@ -43,6 +43,10 @@ from packages.common.remoteok_config import (
     RemoteOKConfig,
     parse_remoteok_sources,
 )
+from packages.common.startup_jobs_config import (
+    StartupJobsConfig,
+    parse_startup_jobs_sources,
+)
 from packages.common.smartrecruiters_config import (
     SmartRecruitersBoardConfig,
     parse_smartrecruiters_boards,
@@ -141,6 +145,13 @@ class Settings(BaseSettings):
     def jobicy_source_configs(self) -> list[JobicyConfig]:
         """Return parsed Jobicy source configurations."""
         return parse_jobicy_sources(self.jobicy_sources)
+
+    startup_jobs_sources: list[str] = []
+
+    @property
+    def startup_jobs_source_configs(self) -> list[StartupJobsConfig]:
+        """Return parsed Startup Jobs RSS role configurations."""
+        return parse_startup_jobs_sources(self.startup_jobs_sources)
 
     hopin_sources: list[str] = []
 

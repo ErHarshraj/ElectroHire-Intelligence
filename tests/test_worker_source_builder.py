@@ -11,6 +11,7 @@ from packages.job_sources.fourdayweek.source import FourDayWeekJobSource
 from packages.job_sources.himalayas.source import HimalayasJobSource
 from packages.job_sources.jobicy.source import JobicyJobSource
 from packages.job_sources.remoteok.source import RemoteOKJobSource
+from packages.job_sources.startup_jobs.source import StartupJobsJobSource
 from packages.job_sources.workable.source import WorkableJobSource
 from packages.job_sources.workday.source import WorkdayJobSource
 
@@ -565,3 +566,43 @@ def test_build_job_sources_creates_fourdayweek_sources() -> None:
 
     assert sources[1].name == "fourdayweek"
     assert sources[1].limit == 100
+
+
+def test_build_job_sources_creates_startup_jobs_sources() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        startup_jobs_sources=[
+            "hardware-engineer",
+            "embedded-engineer",
+        ],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert len(sources) == 2
+    assert all(
+        isinstance(source, StartupJobsJobSource)
+        for source in sources
+    )
+
+    assert sources[0].name == "startup_jobs"
+    assert sources[0].role == "hardware-engineer"
+
+    assert sources[1].name == "startup_jobs"
+    assert sources[1].role == "embedded-engineer"
+
+
+def test_build_job_sources_has_no_startup_jobs_sources_when_unconfigured() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        startup_jobs_sources=[],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert not any(
+        isinstance(source, StartupJobsJobSource)
+        for source in sources
+    )

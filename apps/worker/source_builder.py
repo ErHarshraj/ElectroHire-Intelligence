@@ -28,6 +28,8 @@ from packages.job_sources.jobicy.client import JobicyClient
 from packages.job_sources.jobicy.source import JobicyJobSource
 from packages.job_sources.remoteok.client import RemoteOKClient
 from packages.job_sources.remoteok.source import RemoteOKJobSource
+from packages.job_sources.startup_jobs.client import StartupJobsClient
+from packages.job_sources.startup_jobs.source import StartupJobsJobSource
 from packages.job_sources.workable.client import WorkableClient
 from packages.job_sources.workable.source import WorkableJobSource
 from packages.job_sources.workday.client import WorkdayClient
@@ -131,6 +133,16 @@ def build_job_sources(
             client=JobicyClient(),
             count=count,
         )
+
+    def create_startup_jobs_source(
+        *,
+        role: str,
+    ) -> SourceAdapter:
+        return StartupJobsJobSource(
+            client=StartupJobsClient(),
+            role=role,
+        )
+
 
     def create_hopin_source(
         *,
@@ -244,6 +256,13 @@ def build_job_sources(
         name="jobicy",
         source_type=SourceType.JOB,
         factory=create_jobicy_source,
+    )
+
+    factory_registry.register(
+        name="startup_jobs",
+        source_type=SourceType.JOB,
+        factory=create_startup_jobs_source,
+
     )
 
     factory_registry.register(
@@ -367,6 +386,15 @@ def build_job_sources(
             count=source.count,
         )
         for source in settings.jobicy_source_configs
+    )
+
+    startup_jobs_factory = factory_registry.get("startup_jobs")
+
+    sources.extend(
+        startup_jobs_factory(
+            role=source.role,
+        )
+        for source in settings.startup_jobs_source_configs
     )
 
     hopin_factory = factory_registry.get("hopin")

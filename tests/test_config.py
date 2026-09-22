@@ -3,6 +3,7 @@ from packages.common.ayla_config import AylaConfig
 from packages.common.config import Settings
 from packages.common.greenhouse_config import GreenhouseBoardConfig
 from packages.common.lever_config import LeverBoardConfig
+from packages.common.startup_jobs_config import StartupJobsConfig
 
 
 def test_default_settings() -> None:
@@ -166,3 +167,24 @@ def test_ayla_source_configs_are_empty_when_not_configured() -> None:
     settings = Settings(_env_file=None)
 
     assert settings.ayla_source_configs == []
+
+
+def test_startup_jobs_source_configs_are_parsed() -> None:
+    settings = Settings(
+        _env_file=None,
+        startup_jobs_sources=[
+            "hardware-engineer",
+            "embedded-engineer",
+        ],
+    )
+
+    assert settings.startup_jobs_source_configs == [
+        StartupJobsConfig(role="hardware-engineer"),
+        StartupJobsConfig(role="embedded-engineer"),
+    ]
+
+
+def test_startup_jobs_source_configs_are_empty_when_not_configured() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.startup_jobs_source_configs == []

@@ -43,13 +43,17 @@ from packages.common.remoteok_config import (
     RemoteOKConfig,
     parse_remoteok_sources,
 )
-from packages.common.startup_jobs_config import (
-    StartupJobsConfig,
-    parse_startup_jobs_sources,
+from packages.common.rippling_config import (
+    RipplingConfig,
+    parse_rippling_sources,
 )
 from packages.common.smartrecruiters_config import (
     SmartRecruitersBoardConfig,
     parse_smartrecruiters_boards,
+)
+from packages.common.startup_jobs_config import (
+    StartupJobsConfig,
+    parse_startup_jobs_sources,
 )
 from packages.common.workable_config import (
     WorkableConfig,
@@ -192,6 +196,13 @@ class Settings(BaseSettings):
         """Return parsed Workable career-account configurations."""
         return parse_workable_sources(self.workable_sources)
 
+
+    rippling_sources: list[str] = []
+
+    @property
+    def rippling_source_configs(self) -> list[RipplingConfig]:
+        """Return parsed Rippling career-board configurations."""
+        return parse_rippling_sources(self.rippling_sources)
 
     workday_sources: list[str] = []
 

@@ -11,6 +11,7 @@ from packages.job_sources.fourdayweek.source import FourDayWeekJobSource
 from packages.job_sources.himalayas.source import HimalayasJobSource
 from packages.job_sources.jobicy.source import JobicyJobSource
 from packages.job_sources.remoteok.source import RemoteOKJobSource
+from packages.job_sources.rippling.source import RipplingJobSource
 from packages.job_sources.startup_jobs.source import StartupJobsJobSource
 from packages.job_sources.workable.source import WorkableJobSource
 from packages.job_sources.workday.source import WorkdayJobSource
@@ -606,3 +607,58 @@ def test_build_job_sources_has_no_startup_jobs_sources_when_unconfigured() -> No
         isinstance(source, StartupJobsJobSource)
         for source in sources
     )
+
+
+def test_build_job_sources_creates_rippling_sources() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        rippling_sources=[
+            "tylsemi|TYLsemi, Inc.",
+        ],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert len(sources) == 1
+    assert isinstance(sources[0], RipplingJobSource)
+    assert sources[0].name == "rippling"
+    assert sources[0].client.board_slug == "tylsemi"
+    assert sources[0].company_name == "TYLsemi, Inc."
+
+
+def test_build_job_sources_creates_multiple_rippling_sources() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        rippling_sources=[
+            "tylsemi|TYLsemi, Inc.",
+            "cbtsindia|CBTS India",
+        ],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert len(sources) == 2
+    assert all(
+        isinstance(source, RipplingJobSource)
+        for source in sources
+    )
+
+    assert sources[0].client.board_slug == "tylsemi"
+    assert sources[0].company_name == "TYLsemi, Inc."
+
+    assert sources[1].client.board_slug == "cbtsindia"
+    assert sources[1].company_name == "CBTS India"
+
+
+def test_build_job_sources_has_no_rippling_sources_when_unconfigured() -> None:
+    settings = Settings(
+        _env_file=None,
+        adzuna_queries=[],
+        rippling_sources=[],
+    )
+
+    sources = build_job_sources(settings=settings)
+
+    assert sources == []

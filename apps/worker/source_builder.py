@@ -28,6 +28,8 @@ from packages.job_sources.jobicy.client import JobicyClient
 from packages.job_sources.jobicy.source import JobicyJobSource
 from packages.job_sources.remoteok.client import RemoteOKClient
 from packages.job_sources.remoteok.source import RemoteOKJobSource
+from packages.job_sources.rippling.client import RipplingClient
+from packages.job_sources.rippling.source import RipplingJobSource
 from packages.job_sources.startup_jobs.client import StartupJobsClient
 from packages.job_sources.startup_jobs.source import StartupJobsJobSource
 from packages.job_sources.workable.client import WorkableClient
@@ -202,6 +204,16 @@ def build_job_sources(
             batches=batches,
         )
 
+    def create_rippling_source(
+        *,
+        board_slug: str,
+        company_name: str,
+    ) -> SourceAdapter:
+        return RipplingJobSource(
+            client=RipplingClient(board_slug=board_slug),
+            company_name=company_name,
+        )
+
     def create_workable_source(
         *,
         account_slug: str,
@@ -306,6 +318,12 @@ def build_job_sources(
         name="workable",
         source_type=SourceType.JOB,
         factory=create_workable_source,
+    )
+
+    factory_registry.register(
+        name="rippling",
+        source_type=SourceType.JOB,
+        factory=create_rippling_source,
     )
 
     sources: list[SourceAdapter] = []
@@ -455,6 +473,16 @@ def build_job_sources(
             company_name=source.company_name,
         )
         for source in settings.workable_source_configs
+    )
+
+    rippling_factory = factory_registry.get("rippling")
+
+    sources.extend(
+        rippling_factory(
+            board_slug=source.board_slug,
+            company_name=source.company_name,
+        )
+        for source in settings.rippling_source_configs
     )
 
     return sources

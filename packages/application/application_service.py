@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 
 from packages.application.adapters.base import ApplicationAdapter
+from packages.application.career_application_service import CareerApplicationService
+from packages.application.career_models import CareerApplicationStatus
 from packages.application.models import (
     ApplicationMethod,
     ApplicationRequest,
@@ -21,10 +23,12 @@ class ApplicationService:
         email_adapter: ApplicationAdapter,
         browser_adapter: ApplicationAdapter,
         repository: ApplicationRepository | None = None,
+        career_application_service: CareerApplicationService | None = None,
     ) -> None:
         self.email_adapter = email_adapter
         self.browser_adapter = browser_adapter
         self.repository = repository
+        self.career_application_service = career_application_service
 
     def submit(
         self,
@@ -98,19 +102,59 @@ class ApplicationService:
                 ),
             )
 
+        submitted_at = (
+            datetime.now(timezone.utc)
+            if result.status == ApplicationStatus.SUBMITTED
+            else None
+        )
+
         self.repository.update(
             application_id,
             status=result.status,
             message=result.message,
             external_reference=result.external_reference,
-            submitted_at=(
-                datetime.now(timezone.utc)
-                if result.status == ApplicationStatus.SUBMITTED
-                else None
-            ),
+            submitted_at=submitted_at,
         )
 
+        if submitted_at is not None:
+            self._sync_career_application(
+                job_id,
+                applied_at=submitted_at,
+            )
+
         return result
+
+    def _sync_career_application(
+        self,
+        job_id: int,
+        applied_at: datetime,
+    ) -> None:
+        """Synchronize a successful submission with career tracking."""
+
+        if self.career_application_service is None:
+            return
+
+        career_application = (
+            self.career_application_service.get_by_job(job_id)
+        )
+
+        if career_application is None:
+            self.career_application_service.create(
+                job_id=job_id,
+                status=CareerApplicationStatus.APPLIED,
+                applied_at=applied_at,
+            )
+            return
+
+        if career_application.status == CareerApplicationStatus.SHORTLISTED:
+            self.career_application_service.transition(
+                career_application.id,
+                CareerApplicationStatus.APPLIED,
+            )
+            self.career_application_service.mark_applied(
+                career_application.id,
+                applied_at=applied_at,
+            )
 
     def _submit_without_persistence(
         self,

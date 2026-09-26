@@ -5,6 +5,13 @@ import pytest
 from packages.application.adapters.base import ApplicationAdapter
 from packages.application.adapters.dry_run import DryRunApplicationAdapter
 from packages.application.application_service import ApplicationService
+from packages.application.career_application_service import (
+    CareerApplicationService,
+)
+from packages.application.career_models import (
+    CareerApplicationRecord,
+    CareerApplicationStatus,
+)
 from packages.application.models import (
     ApplicationMethod,
     ApplicationRequest,
@@ -14,6 +21,9 @@ from packages.application.models import (
 from packages.persistence.application_repository import (
     ApplicationRecord,
     ApplicationRepository,
+)
+from packages.persistence.career_application_repository import (
+    CareerApplicationRepository,
 )
 
 
@@ -120,6 +130,81 @@ class FakeApplicationRepository(ApplicationRepository):
         )
 
 
+class FakeCareerApplicationRepository(CareerApplicationRepository):
+    """In-memory repository for career-application synchronization tests."""
+
+    def __init__(self) -> None:
+        self.records: dict[int, CareerApplicationRecord] = {}
+        self.next_id = 1
+
+    def save(self, record: CareerApplicationRecord) -> int:
+        application_id = self.next_id
+        self.next_id += 1
+
+        self.records[application_id] = CareerApplicationRecord(
+            job_id=record.job_id,
+            status=record.status,
+            id=application_id,
+            application_url=record.application_url,
+            applied_at=record.applied_at,
+            notes=record.notes,
+            last_followup_at=record.last_followup_at,
+            next_followup_at=record.next_followup_at,
+            created_at=record.created_at,
+            updated_at=record.updated_at,
+        )
+
+        return application_id
+
+    def get(self, application_id: int) -> CareerApplicationRecord | None:
+        return self.records.get(application_id)
+
+    def get_by_job(
+        self,
+        job_id: int,
+    ) -> CareerApplicationRecord | None:
+        for record in self.records.values():
+            if record.job_id == job_id:
+                return record
+        return None
+
+    def list_by_status(
+        self,
+        status: CareerApplicationStatus,
+    ) -> list[CareerApplicationRecord]:
+        return [
+            record
+            for record in self.records.values()
+            if record.status == status
+        ]
+
+    def update(
+        self,
+        application_id: int,
+        *,
+        status: CareerApplicationStatus,
+        application_url: str | None = None,
+        applied_at: datetime | None = None,
+        notes: str = "",
+        last_followup_at: datetime | None = None,
+        next_followup_at: datetime | None = None,
+    ) -> None:
+        record = self.records[application_id]
+
+        self.records[application_id] = CareerApplicationRecord(
+            job_id=record.job_id,
+            status=status,
+            id=application_id,
+            application_url=application_url,
+            applied_at=applied_at,
+            notes=notes,
+            last_followup_at=last_followup_at,
+            next_followup_at=next_followup_at,
+            created_at=record.created_at,
+            updated_at=datetime.now(timezone.utc),
+        )
+
+
 class SuccessfulAdapter(ApplicationAdapter):
     """Adapter that simulates a successful real submission."""
 
@@ -157,6 +242,7 @@ def make_request(
 def make_service(
     repository: ApplicationRepository | None = None,
     adapter: ApplicationAdapter | None = None,
+    career_application_service: CareerApplicationService | None = None,
 ) -> ApplicationService:
     adapter = adapter or DryRunApplicationAdapter()
 
@@ -164,6 +250,7 @@ def make_service(
         email_adapter=adapter,
         browser_adapter=adapter,
         repository=repository,
+        career_application_service=career_application_service,
     )
 
 
@@ -222,6 +309,155 @@ def test_successful_submission_is_persisted() -> None:
     assert record.external_reference == "external-123"
     assert record.message == "application submitted successfully"
     assert record.submitted_at is not None
+
+
+def test_successful_submission_creates_career_application() -> None:
+    repository = FakeApplicationRepository()
+    career_repository = FakeCareerApplicationRepository()
+    career_service = CareerApplicationService(career_repository)
+
+    service = make_service(
+        repository,
+        adapter=SuccessfulAdapter(),
+        career_application_service=career_service,
+    )
+
+    result = service.submit(make_request(), job_id=42)
+
+    assert result.status == ApplicationStatus.SUBMITTED
+
+    career_application = career_repository.get_by_job(42)
+
+    assert career_application is not None
+    assert career_application.status == CareerApplicationStatus.APPLIED
+    assert career_application.applied_at is not None
+
+    application_record = repository.get_latest(42)
+
+    assert application_record is not None
+    assert application_record.submitted_at is not None
+    assert career_application.applied_at == application_record.submitted_at
+
+
+def test_successful_submission_moves_shortlisted_to_applied() -> None:
+    repository = FakeApplicationRepository()
+    career_repository = FakeCareerApplicationRepository()
+    career_service = CareerApplicationService(career_repository)
+
+    career_application_id = career_service.create(
+        job_id=42,
+        status=CareerApplicationStatus.SHORTLISTED,
+    )
+
+    service = make_service(
+        repository,
+        adapter=SuccessfulAdapter(),
+        career_application_service=career_service,
+    )
+
+    result = service.submit(make_request(), job_id=42)
+
+    assert result.status == ApplicationStatus.SUBMITTED
+
+    career_application = career_repository.get(career_application_id)
+
+    assert career_application is not None
+    assert career_application.status == CareerApplicationStatus.APPLIED
+    assert career_application.applied_at is not None
+
+    application_record = repository.get_latest(42)
+
+    assert application_record is not None
+    assert application_record.submitted_at is not None
+    assert career_application.applied_at == application_record.submitted_at
+
+
+def test_successful_submission_preserves_shortlisted_tracking_metadata() -> None:
+    repository = FakeApplicationRepository()
+    career_repository = FakeCareerApplicationRepository()
+    career_service = CareerApplicationService(career_repository)
+
+    career_application_id = career_service.create(
+        job_id=42,
+        status=CareerApplicationStatus.SHORTLISTED,
+        application_url="https://example.com/apply",
+        notes="Important hardware role",
+    )
+
+    service = make_service(
+        repository,
+        adapter=SuccessfulAdapter(),
+        career_application_service=career_service,
+    )
+
+    result = service.submit(make_request(), job_id=42)
+
+    assert result.status == ApplicationStatus.SUBMITTED
+
+    career_application = career_repository.get(career_application_id)
+
+    assert career_application is not None
+    assert career_application.status == CareerApplicationStatus.APPLIED
+    assert career_application.application_url == "https://example.com/apply"
+    assert career_application.notes == "Important hardware role"
+    assert career_application.applied_at is not None
+
+
+def test_successful_submission_preserves_existing_applied_status() -> None:
+    repository = FakeApplicationRepository()
+    career_repository = FakeCareerApplicationRepository()
+    career_service = CareerApplicationService(career_repository)
+
+    career_application_id = career_service.create(
+        job_id=42,
+        status=CareerApplicationStatus.APPLIED,
+    )
+
+    service = make_service(
+        repository,
+        adapter=SuccessfulAdapter(),
+        career_application_service=career_service,
+    )
+
+    result = service.submit(make_request(), job_id=42)
+
+    assert result.status == ApplicationStatus.SUBMITTED
+
+    career_application = career_repository.get(career_application_id)
+
+    assert career_application is not None
+    assert career_application.status == CareerApplicationStatus.APPLIED
+
+
+def test_failed_submission_does_not_create_career_application() -> None:
+    repository = FakeApplicationRepository()
+    career_repository = FakeCareerApplicationRepository()
+    career_service = CareerApplicationService(career_repository)
+
+    service = make_service(
+        repository,
+        adapter=FailingAdapter(),
+        career_application_service=career_service,
+    )
+
+    result = service.submit(make_request(), job_id=42)
+
+    assert result.status == ApplicationStatus.PAUSED
+    assert career_repository.get_by_job(42) is None
+
+
+def test_submission_without_career_service_preserves_existing_behavior() -> None:
+    repository = FakeApplicationRepository()
+
+    service = make_service(
+        repository,
+        adapter=SuccessfulAdapter(),
+    )
+
+    result = service.submit(make_request(), job_id=42)
+
+    assert result.status == ApplicationStatus.SUBMITTED
+    assert len(repository.records) == 1
 
 
 def test_adapter_exception_moves_application_to_paused() -> None:
@@ -382,3 +618,39 @@ def test_browser_application_requires_apply_url() -> None:
 
     assert result.status == ApplicationStatus.FAILED
     assert "apply URL" in result.message
+
+
+def test_successful_submission_preserves_screening_status() -> None:
+    repository = FakeApplicationRepository()
+    career_repository = FakeCareerApplicationRepository()
+    career_service = CareerApplicationService(career_repository)
+
+    career_application_id = career_service.create(
+        job_id=42,
+        status=CareerApplicationStatus.SHORTLISTED,
+    )
+
+    career_service.transition(
+        career_application_id,
+        CareerApplicationStatus.APPLIED,
+    )
+
+    career_service.transition(
+        career_application_id,
+        CareerApplicationStatus.SCREENING,
+    )
+
+    service = make_service(
+        repository,
+        adapter=SuccessfulAdapter(),
+        career_application_service=career_service,
+    )
+
+    result = service.submit(make_request(), job_id=42)
+
+    assert result.status == ApplicationStatus.SUBMITTED
+
+    career_application = career_repository.get(career_application_id)
+
+    assert career_application is not None
+    assert career_application.status == CareerApplicationStatus.SCREENING

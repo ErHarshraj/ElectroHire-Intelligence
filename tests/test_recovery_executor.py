@@ -32,6 +32,11 @@ class FakeJobRepository(JobRepository):
     def save(self, job: Job) -> None:
         self.jobs.append(job)
 
+    def get_by_id(self, job_id: int) -> Job | None:
+        if job_id < 1 or job_id > len(self.jobs):
+            return None
+        return self.jobs[job_id - 1]
+
     def get_by_source_job_id(
         self,
         source: str,
@@ -57,6 +62,13 @@ class FakeJobRepository(JobRepository):
             ):
                 return index
         return None
+
+    def list_jobs_with_ids(self) -> list[tuple[int, Job]]:
+        return [
+            (index, job)
+            for index, job in enumerate(self.jobs, start=1)
+        ]
+
 
     def list_jobs(self) -> list[Job]:
         return self.jobs

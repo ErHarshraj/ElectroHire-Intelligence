@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from pydantic import HttpUrl
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -62,6 +64,24 @@ class SQLAlchemyJobRepository(JobRepository):
 
         self._session.commit()
 
+    def get_by_id(self, job_id: int) -> Job | None:
+        """Find a domain job by its database ID."""
+
+        model = self._session.get(JobModel, job_id)
+
+        if model is None:
+            return None
+
+        return self._to_domain(model)
+
+
+    def list_jobs_with_ids(self) -> list[tuple[int, Job]]:
+        """Return all persisted jobs with their database IDs."""
+        statement = select(JobModel).order_by(JobModel.id)
+        models = self._session.scalars(statement).all()
+        return [(model.id, self._to_domain(model)) for model in models]
+
+
     def get_by_source_job_id(
         self,
         source: str,
@@ -105,7 +125,21 @@ class SQLAlchemyJobRepository(JobRepository):
         return [self._to_domain(model) for model in models]
 
     @staticmethod
-    def _to_domain(model: JobModel) -> Job:
+    def _as_utc(
+        value: datetime | None,
+    ) -> datetime | None:
+        """Return a datetime with an explicit UTC timezone."""
+
+        if value is None:
+            return None
+
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+
+        return value.astimezone(timezone.utc)
+
+    @classmethod
+    def _to_domain(cls, model: JobModel) -> Job:
         """Convert a persistence model into a domain object."""
 
         return Job(
@@ -123,8 +157,8 @@ class SQLAlchemyJobRepository(JobRepository):
                 for skill in model.skills.split(",")
                 if skill
             ],
-            posted_at=model.posted_at,
-            discovered_at=model.discovered_at,
+            posted_at=cls._as_utc(model.posted_at),
+            discovered_at=cls._as_utc(model.discovered_at),
             is_active=model.is_active,
             status=JobStatus(model.status),
         )

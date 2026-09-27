@@ -12,6 +12,12 @@ class InMemoryJobRepository(JobRepository):
         """Store a job in memory."""
         self._jobs.append(job)
 
+    def get_by_id(self, job_id: int) -> Job | None:
+        """Find a job by its stable in-memory ID."""
+        if job_id < 1 or job_id > len(self._jobs):
+            return None
+        return self._jobs[job_id - 1]
+
     def get_by_source_job_id(
         self,
         source: str,
@@ -45,3 +51,10 @@ class InMemoryJobRepository(JobRepository):
     def list_jobs(self) -> list[Job]:
         """Return all stored jobs."""
         return list(self._jobs)
+
+    def list_jobs_with_ids(self) -> list[tuple[int, Job]]:
+        """Return all stored jobs with their stable in-memory IDs."""
+        return [
+            (index, job)
+            for index, job in enumerate(self._jobs, start=1)
+        ]

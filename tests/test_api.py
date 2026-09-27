@@ -147,3 +147,51 @@ def test_application_approval_endpoints() -> None:
     response = client.get("/applications/approvals")
     assert response.status_code == 200
     assert response.json() == []
+
+
+def test_list_jobs_includes_job_without_source_job_id() -> None:
+    session = TestSessionLocal()
+
+    try:
+        repository = SQLAlchemyJobRepository(session)
+
+        repository.save(
+            Job(
+                title="Electronics Test Engineer",
+                company="Nullable ID Electronics",
+                location="Indore",
+                description=(
+                    "Test electronics hardware, circuits, PCB assemblies, "
+                    "and embedded systems."
+                ),
+                source="test-nullable-id",
+                source_job_id=None,
+                source_url=HttpUrl(
+                    "https://example.com/jobs/nullable-source-id"
+                ),
+                skills=["PCB", "Embedded Systems"],
+                discovered_at=datetime.now(timezone.utc),
+            )
+        )
+
+        jobs = repository.list_jobs_with_ids()
+        job_id = jobs[-1][0]
+    finally:
+        session.close()
+
+    response = client.get("/jobs")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    returned_job = next(
+        item
+        for item in data
+        if item["id"] == job_id
+    )
+
+    assert returned_job["title"] == "Electronics Test Engineer"
+    assert returned_job["company"] == "Nullable ID Electronics"
+    assert returned_job["source"] == "test-nullable-id"
+    assert returned_job["source_job_id"] is None

@@ -284,3 +284,103 @@ class CareerApplicationModel(Base):
         DateTime(timezone=True),
         nullable=False,
     )
+
+
+class CandidateProfileModel(Base):
+    __tablename__ = "candidate_profiles"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    full_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    email: Mapped[str | None] = mapped_column(
+        String(320),
+        nullable=True,
+    )
+
+    phone: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+
+    location: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    resume_path: Mapped[str | None] = mapped_column(
+        String(2048),
+        nullable=True,
+    )
+
+    linkedin_url: Mapped[str | None] = mapped_column(
+        String(2048),
+        nullable=True,
+    )
+
+    github_url: Mapped[str | None] = mapped_column(
+        String(2048),
+        nullable=True,
+    )
+
+    portfolio_url: Mapped[str | None] = mapped_column(
+        String(2048),
+        nullable=True,
+    )
+
+    education: Mapped[str] = mapped_column(
+        Text,
+        default="[]",
+        nullable=False,
+    )
+
+    skills: Mapped[str] = mapped_column(
+        Text,
+        default="[]",
+        nullable=False,
+    )
+
+    projects: Mapped[str] = mapped_column(
+        Text,
+        default="[]",
+        nullable=False,
+    )
+
+    application_answers: Mapped[str] = mapped_column(
+        Text,
+        default="{}",
+        nullable=False,
+    )
+
+    target_roles: Mapped[str] = mapped_column(
+        Text,
+        default="[]",
+        nullable=False,
+    )
+
+    role_families: Mapped[str] = mapped_column(
+        Text,
+        default="[]",
+        nullable=False,
+    )
+
+    skill_families: Mapped[str] = mapped_column(
+        Text,
+        default="[]",
+        nullable=False,
+    )
+
+    domain_families: Mapped[str] = mapped_column(
+        Text,
+        default="[]",
+        nullable=False,
+    )
+
+    experience_keywords: Mapped[str] = mapped_column(
+        Text,
+        default="[]",
+        nullable=False,
+    )

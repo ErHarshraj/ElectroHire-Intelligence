@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
+from packages.domain.candidate_profile import CandidateProfile
 from packages.domain.job import Job
-from packages.matching.profile import CandidateProfile
 from packages.matching.relevance import JobRelevanceEngine, RelevanceResult
 
 

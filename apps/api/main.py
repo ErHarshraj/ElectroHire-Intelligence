@@ -25,6 +25,10 @@ from packages.persistence.sqlalchemy_decision_repository import (
 from packages.persistence.sqlalchemy_job_repository import (
     SQLAlchemyJobRepository,
 )
+from packages.persistence.sqlalchemy_worker_run_repository import (
+    SQLAlchemyWorkerRunRepository,
+)
+from packages.persistence.worker_run_repository import WorkerRunRecord
 
 app = FastAPI(
     title="ElectroHire Intelligence API",
@@ -203,6 +207,86 @@ def get_job(
         job_id,
         job,
     )
+
+
+def _build_worker_run_response(
+    record: WorkerRunRecord,
+) -> dict[str, object | None]:
+    """Build the API representation of a persisted worker run."""
+
+    return {
+        "id": record.id,
+        "started_at": record.started_at,
+        "completed_at": record.completed_at,
+        "duration_seconds": (
+            record.completed_at - record.started_at
+        ).total_seconds(),
+        "success": record.success,
+        "queries_processed": record.queries_processed,
+        "new_jobs": record.new_jobs,
+        "evaluated_jobs": record.evaluated_jobs,
+        "ignored_jobs": record.ignored_jobs,
+        "application_stats": {
+            "apply_decisions": record.application_stats.apply_decisions,
+            "targets_found": record.application_stats.targets_found,
+            "no_target": record.application_stats.no_target,
+            "submitted": record.application_stats.submitted,
+            "pending": record.application_stats.pending,
+            "failed": record.application_stats.failed,
+            "paused": record.application_stats.paused,
+            "already_submitted": record.application_stats.already_submitted,
+            "recovery_candidates": (
+                record.application_stats.recovery_candidates
+            ),
+            "recovery_submitted": (
+                record.application_stats.recovery_submitted
+            ),
+            "recovery_failed": record.application_stats.recovery_failed,
+            "recovery_paused": record.application_stats.recovery_paused,
+            "recovery_skipped": record.application_stats.recovery_skipped,
+        },
+        "error": record.error,
+    }
+
+
+@app.get("/worker-runs")
+def list_worker_runs(
+    limit: int = 20,
+    session: Session = Depends(get_db),  # noqa: B008
+) -> list[dict[str, object | None]]:
+    """List recent worker execution reports."""
+
+    if limit <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="limit must be greater than zero",
+        )
+
+    repository = SQLAlchemyWorkerRunRepository(session)
+
+    return [
+        _build_worker_run_response(record)
+        for record in repository.list_recent(limit=limit)
+    ]
+
+
+@app.get("/worker-runs/{worker_run_id}")
+def get_worker_run(
+    worker_run_id: int,
+    session: Session = Depends(get_db),  # noqa: B008
+) -> dict[str, object | None]:
+    """Return one persisted worker execution report."""
+
+    repository = SQLAlchemyWorkerRunRepository(session)
+    record = repository.get_by_id(worker_run_id)
+
+    if record is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Worker run not found",
+        )
+
+    return _build_worker_run_response(record)
 
 
 @app.get("/applications/approvals")

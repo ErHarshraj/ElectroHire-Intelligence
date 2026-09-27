@@ -8,11 +8,16 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from apps.api.main import app, get_db
+from packages.application.stats import ApplicationRunStats
 from packages.domain.job import Job
 from packages.persistence.models import Base
 from packages.persistence.sqlalchemy_job_repository import (
     SQLAlchemyJobRepository,
 )
+from packages.persistence.sqlalchemy_worker_run_repository import (
+    SQLAlchemyWorkerRunRepository,
+)
+from packages.persistence.worker_run_repository import WorkerRunRecord
 
 TEST_DATABASE_URL = "sqlite://"
 
@@ -195,3 +200,142 @@ def test_list_jobs_includes_job_without_source_job_id() -> None:
     assert returned_job["company"] == "Nullable ID Electronics"
     assert returned_job["source"] == "test-nullable-id"
     assert returned_job["source_job_id"] is None
+
+
+def _worker_run_record(
+    started_at: datetime,
+    completed_at: datetime,
+    *,
+    success: bool = True,
+    error: str | None = None,
+) -> WorkerRunRecord:
+    return WorkerRunRecord(
+        started_at=started_at,
+        completed_at=completed_at,
+        success=success,
+        queries_processed=4,
+        new_jobs=3,
+        evaluated_jobs=5,
+        ignored_jobs=1,
+        application_stats=ApplicationRunStats(
+            apply_decisions=2,
+            targets_found=2,
+            no_target=0,
+            submitted=1,
+            pending=1,
+            failed=0,
+            paused=0,
+            already_submitted=0,
+            recovery_candidates=1,
+            recovery_submitted=1,
+            recovery_failed=0,
+            recovery_paused=0,
+            recovery_skipped=0,
+        ),
+        error=error,
+    )
+
+
+def test_list_worker_runs_returns_empty_list() -> None:
+    response = client.get("/worker-runs")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_worker_runs_returns_newest_first_and_respects_limit() -> None:
+    session = TestSessionLocal()
+
+    try:
+        repository = SQLAlchemyWorkerRunRepository(session)
+
+        first_id = repository.save(
+            _worker_run_record(
+                datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc),
+                datetime(2026, 1, 1, 10, 2, tzinfo=timezone.utc),
+            )
+        )
+        second_id = repository.save(
+            _worker_run_record(
+                datetime(2026, 1, 1, 11, 0, tzinfo=timezone.utc),
+                datetime(2026, 1, 1, 11, 3, tzinfo=timezone.utc),
+            )
+        )
+    finally:
+        session.close()
+
+    response = client.get("/worker-runs?limit=1")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["id"] == second_id
+    assert data[0]["id"] != first_id
+    assert data[0]["duration_seconds"] == 180.0
+
+
+def test_get_worker_run_returns_complete_report() -> None:
+    session = TestSessionLocal()
+
+    try:
+        repository = SQLAlchemyWorkerRunRepository(session)
+
+        worker_run_id = repository.save(
+            _worker_run_record(
+                datetime(2026, 2, 1, 12, 0, tzinfo=timezone.utc),
+                datetime(2026, 2, 1, 12, 5, tzinfo=timezone.utc),
+                success=False,
+                error="simulated worker failure",
+            )
+        )
+    finally:
+        session.close()
+
+    response = client.get(f"/worker-runs/{worker_run_id}")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == worker_run_id
+    assert data["success"] is False
+    assert data["queries_processed"] == 4
+    assert data["new_jobs"] == 3
+    assert data["evaluated_jobs"] == 5
+    assert data["ignored_jobs"] == 1
+    assert data["duration_seconds"] == 300.0
+    assert data["error"] == "simulated worker failure"
+
+    stats = data["application_stats"]
+
+    assert stats["apply_decisions"] == 2
+    assert stats["targets_found"] == 2
+    assert stats["no_target"] == 0
+    assert stats["submitted"] == 1
+    assert stats["pending"] == 1
+    assert stats["failed"] == 0
+    assert stats["paused"] == 0
+    assert stats["already_submitted"] == 0
+    assert stats["recovery_candidates"] == 1
+    assert stats["recovery_submitted"] == 1
+    assert stats["recovery_failed"] == 0
+    assert stats["recovery_paused"] == 0
+    assert stats["recovery_skipped"] == 0
+
+
+def test_get_worker_run_returns_404_for_missing_id() -> None:
+    response = client.get("/worker-runs/999999")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Worker run not found"}
+
+
+def test_list_worker_runs_rejects_non_positive_limit() -> None:
+    response = client.get("/worker-runs?limit=0")
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "limit must be greater than zero"
+    }

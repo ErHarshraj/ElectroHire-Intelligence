@@ -16,6 +16,9 @@ from packages.persistence.sqlalchemy_application_approval_repository import (
 from packages.persistence.sqlalchemy_application_repository import (
     SQLAlchemyApplicationRepository,
 )
+from packages.persistence.sqlalchemy_candidate_profile_repository import (
+    SQLAlchemyCandidateProfileRepository,
+)
 from packages.persistence.sqlalchemy_career_application_repository import (
     SQLAlchemyCareerApplicationRepository,
 )
@@ -53,7 +56,9 @@ def _build_job_intelligence(
     """Build the complete read-side intelligence representation for a job."""
 
     relevance_engine = JobRelevanceEngine()
+    candidate_profile = SQLAlchemyCandidateProfileRepository(session).get()
     ranking_engine = JobRankingEngine(
+        profile=candidate_profile,
         relevance_engine=relevance_engine,
     )
     quality_engine = JobQualityEngine()

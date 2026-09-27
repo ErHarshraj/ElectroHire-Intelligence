@@ -9,8 +9,12 @@ from sqlalchemy.pool import StaticPool
 
 from apps.api.main import app, get_db
 from packages.application.stats import ApplicationRunStats
+from packages.domain.candidate_profile import CandidateProfile
 from packages.domain.job import Job
 from packages.persistence.models import Base
+from packages.persistence.sqlalchemy_candidate_profile_repository import (
+    SQLAlchemyCandidateProfileRepository,
+)
 from packages.persistence.sqlalchemy_job_repository import (
     SQLAlchemyJobRepository,
 )
@@ -105,6 +109,60 @@ def test_list_jobs_returns_relevance_information() -> None:
     assert job["relevance"]["is_relevant"] is True
     assert job["relevance"]["score"] > 0
     assert "title:hardware design engineer" in job["relevance"]["reasons"]
+
+
+def test_list_jobs_uses_persisted_candidate_profile_for_ranking() -> None:
+    session = TestSessionLocal()
+
+    try:
+        candidate_repository = SQLAlchemyCandidateProfileRepository(session)
+
+        candidate_repository.save(
+            CandidateProfile(
+                full_name="Test Candidate",
+                target_roles=("custom embedded specialist",),
+                role_families=(),
+                skill_families=(),
+                domain_families=(),
+                experience_keywords=(),
+            )
+        )
+
+        job_repository = SQLAlchemyJobRepository(session)
+
+        job_repository.save(
+            Job(
+                title="Custom Embedded Specialist",
+                company="Profile Test Electronics",
+                location="Indore",
+                description="A deliberately customized profile test job.",
+                source="profile-test",
+                source_job_id="profile-test-001",
+                source_url=HttpUrl(
+                    "https://example.com/jobs/profile-test-001"
+                ),
+                skills=[],
+                discovered_at=datetime.now(timezone.utc),
+            )
+        )
+    finally:
+        session.close()
+
+    response = client.get("/jobs")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    returned_job = next(
+        item
+        for item in data
+        if item["source_job_id"] == "profile-test-001"
+    )
+
+    assert "Target role match: custom embedded specialist" in (
+        returned_job["ranking"]["reasons"]
+    )
 
 
 def test_application_approval_endpoints() -> None:

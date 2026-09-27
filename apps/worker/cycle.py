@@ -19,6 +19,7 @@ from packages.application.recovery import ApplicationRecoveryService
 from packages.application.recovery_executor import ApplicationRecoveryExecutor
 from packages.application.stats import ApplicationRunStats
 from packages.common.config import Settings
+from packages.domain.candidate_profile import CandidateProfile
 from packages.domain.job import Job
 from packages.domain.lifecycle import JobLifecycle
 from packages.ingestion.service import IngestionService
@@ -204,6 +205,7 @@ def process_source(
     stats: ApplicationRunStats | None = None,
     approval_service: ApplicationApprovalService | None = None,
     execution_mode: ApplicationExecutionMode = ApplicationExecutionMode.DRY_RUN,
+    candidate_profile: CandidateProfile | None = None,
 ) -> tuple[int, int, int]:
     """Ingest, evaluate, rank, decide, and optionally prepare applications."""
 
@@ -218,7 +220,7 @@ def process_source(
         repository=repository,
     )
 
-    ranking = JobRankingEngine()
+    ranking = JobRankingEngine(profile=candidate_profile)
     decision = JobDecisionEngine()
     quality = JobQualityEngine()
 
@@ -370,6 +372,7 @@ class WorkerCycle:
         application_service: ApplicationService,
         target_discovery: ApplyTargetDiscovery,
         approval_service: ApplicationApprovalService | None = None,
+        candidate_profile: CandidateProfile | None = None,
     ) -> None:
         self.settings = settings
         self.sources = sources
@@ -379,6 +382,7 @@ class WorkerCycle:
         self.application_service = application_service
         self.target_discovery = target_discovery
         self.approval_service = approval_service
+        self.candidate_profile = candidate_profile
 
     def run_approval_phase(self) -> None:
         """Execute approved applications after current-state revalidation."""
@@ -449,6 +453,7 @@ class WorkerCycle:
                 stats=application_stats,
                 execution_mode=self.settings.application_execution_mode,
                 approval_service=self.approval_service,
+                candidate_profile=self.candidate_profile,
             )
 
             total_new_jobs += new_count

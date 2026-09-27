@@ -29,6 +29,9 @@ from packages.persistence.sqlalchemy_application_approval_repository import (
 from packages.persistence.sqlalchemy_application_repository import (
     SQLAlchemyApplicationRepository,
 )
+from packages.persistence.sqlalchemy_candidate_profile_repository import (
+    SQLAlchemyCandidateProfileRepository,
+)
 from packages.persistence.sqlalchemy_decision_repository import (
     SQLAlchemyDecisionRepository,
 )
@@ -304,6 +307,9 @@ def build_worker_cycle(
 
     target_discovery = ApplyTargetDiscovery()
 
+    candidate_profile_repository = SQLAlchemyCandidateProfileRepository(session)
+    candidate_profile = candidate_profile_repository.get()
+
     return WorkerCycle(
         settings=settings,
         sources=sources,
@@ -313,6 +319,7 @@ def build_worker_cycle(
         application_service=application_service,
         target_discovery=target_discovery,
         approval_service=approval_service,
+        candidate_profile=candidate_profile,
     )
 def run() -> None:
     """Run one complete worker cycle."""

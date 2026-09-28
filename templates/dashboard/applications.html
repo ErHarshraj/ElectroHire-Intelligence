@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Applications - ElectroHire Intelligence</title>
+    <link rel="stylesheet" href="/dashboard/theme.css">
+    <style>
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                sans-serif;
+        }
+
+        .container {
+            width: min(1200px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 32px 0 48px;
+        }
+
+        header {
+            margin-bottom: 28px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+        }
+
+        h2,
+        h3 {
+            margin-top: 0;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .back-link {
+            text-decoration: none;
+        }
+
+        .application-list {
+            display: grid;
+            gap: 16px;
+        }
+
+        .application-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .application-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .application-header h2 {
+            margin-bottom: 6px;
+        }
+
+        .metadata {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin: 20px 0;
+        }
+
+        .metadata-item {
+            background: var(--surface-2);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .metadata-label {
+            color: var(--muted);
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+        }
+
+        .metadata-value {
+            overflow-wrap: anywhere;
+        }
+
+        .reason {
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        button,
+        .button {
+            border-radius: 8px;
+            padding: 9px 14px;
+            cursor: pointer;
+            text-decoration: none;
+            font: inherit;
+        }
+
+        button:disabled {
+            cursor: wait;
+            opacity: 0.6;
+        }
+
+        .status {
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: var(--surface-2);
+        }
+
+        .loading,
+        .empty,
+        .error {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+        }
+
+        .error {
+            color: var(--danger);
+        }
+
+        @media (max-width: 700px) {
+            .application-header {
+                flex-direction: column;
+            }
+
+            .container {
+                width: min(100% - 20px, 1200px);
+                padding-top: 20px;
+            }
+        }
+    </style>
+</head>
+<body class="dashboard-theme">
+    <main class="container">
+        <div class="topbar">
+            <div>
+                <a class="back-link" href="/dashboard">← Back to Jobs</a>
+                <h1>Applications</h1>
+                <p class="muted">
+                    Applications waiting for human authorization.
+                </p>
+            </div>
+        </div>
+
+        <div id="content">
+            <div class="loading">Loading applications...</div>
+        </div>
+    </main>
+
+    <script>
+        const content = document.getElementById("content");
+
+        function escapeHtml(value) {
+            const div = document.createElement("div");
+            div.textContent = value ?? "";
+            return div.innerHTML;
+        }
+
+        function formatDate(value) {
+            if (!value) {
+                return "—";
+            }
+
+            const date = new Date(value);
+
+            if (Number.isNaN(date.getTime())) {
+                return value;
+            }
+
+            return date.toLocaleString();
+        }
+
+        function applicationCard(application) {
+            const applyUrl = application.apply_url
+                ? `
+                    <a
+                        class="button"
+                        href="${escapeHtml(application.apply_url)}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Open application
+                    </a>
+                `
+                : "";
+
+            const recruiter = application.recruiter_email
+                ? escapeHtml(application.recruiter_email)
+                : "—";
+
+            return `
+                <article class="application-card" id="application-${application.id}">
+                    <div class="application-header">
+                        <div>
+                            <h2>${escapeHtml(application.job_title || "Untitled job")}</h2>
+                            <div class="muted">
+                                ${escapeHtml(application.company || "Unknown company")}
+                            </div>
+                        </div>
+
+                        <span class="status">
+                            ${escapeHtml(application.status || "unknown")}
+                        </span>
+                    </div>
+
+                    <div class="metadata">
+                        <div class="metadata-item">
+                            <div class="metadata-label">Source</div>
+                            <div class="metadata-value">
+                                ${escapeHtml(application.source || "—")}
+                            </div>
+                        </div>
+
+                        <div class="metadata-item">
+                            <div class="metadata-label">Method</div>
+                            <div class="metadata-value">
+                                ${escapeHtml(application.method || "—")}
+                            </div>
+                        </div>
+
+                        <div class="metadata-item">
+                            <div class="metadata-label">Recruiter email</div>
+                            <div class="metadata-value">${recruiter}</div>
+                        </div>
+
+                        <div class="metadata-item">
+                            <div class="metadata-label">Created</div>
+                            <div class="metadata-value">
+                                ${escapeHtml(formatDate(application.created_at))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="reason">
+                        <strong>Reason:</strong>
+                        ${escapeHtml(application.reason || "No reason provided.")}
+                    </div>
+
+                    <div class="actions">
+                        ${applyUrl}
+
+                        <button
+                            class="button-primary"
+                            onclick="approveApplication(${application.id}, this)"
+                        >
+                            Approve
+                        </button>
+
+                        <button
+                            class="button-danger"
+                            onclick="rejectApplication(${application.id}, this)"
+                        >
+                            Reject
+                        </button>
+                    </div>
+                </article>
+            `;
+        }
+
+        async function loadApplications() {
+            content.innerHTML =
+                '<div class="loading">Loading applications...</div>';
+
+            try {
+                const response = await fetch("/applications/approvals");
+
+                if (!response.ok) {
+                    throw new Error(
+                        `Request failed with status ${response.status}`
+                    );
+                }
+
+                const applications = await response.json();
+
+                if (!applications.length) {
+                    content.innerHTML = `
+                        <div class="empty">
+                            <h2>No applications awaiting approval</h2>
+                            <p>
+                                The approval queue is currently empty.
+                            </p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                content.innerHTML = `
+                    <div class="application-list">
+                        ${applications.map(applicationCard).join("")}
+                    </div>
+                `;
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="error">
+                        <h2>Unable to load applications</h2>
+                        <p>${escapeHtml(error.message)}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function updateApplication(
+            approvalId,
+            action,
+            button
+        ) {
+            button.disabled = true;
+
+            try {
+                const response = await fetch(
+                    `/applications/approvals/${approvalId}/${action}`,
+                    {
+                        method: "POST",
+                    }
+                );
+
+                const payload = await response.json().catch(() => null);
+
+                if (!response.ok) {
+                    const detail = payload && payload.detail
+                        ? payload.detail
+                        : `Request failed with status ${response.status}`;
+
+                    throw new Error(detail);
+                }
+
+                await loadApplications();
+            } catch (error) {
+                button.disabled = false;
+                alert(error.message);
+            }
+        }
+
+        function approveApplication(approvalId, button) {
+            updateApplication(approvalId, "approve", button);
+        }
+
+        function rejectApplication(approvalId, button) {
+            updateApplication(approvalId, "reject", button);
+        }
+
+        loadApplications();
+    </script>
+</body>
+</html>

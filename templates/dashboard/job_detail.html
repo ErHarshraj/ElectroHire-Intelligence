@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Details - ElectroHire Intelligence</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #1f2933;
+        }
+
+        header {
+            background: #17202a;
+            color: white;
+            padding: 18px 24px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        header a {
+            color: #cbd5e1;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 24px auto;
+            padding: 0 16px;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #d9dee5;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .job-header h2 {
+            margin: 0 0 8px;
+            font-size: 26px;
+        }
+
+        .company {
+            color: #475569;
+            font-size: 17px;
+            margin-bottom: 14px;
+        }
+
+        .meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .badge {
+            background: #eef2f7;
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 13px;
+        }
+
+        .priority-high {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .priority-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .priority-low {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        h3 {
+            margin-top: 0;
+        }
+
+        .score {
+            font-size: 34px;
+            font-weight: bold;
+        }
+
+        ul {
+            padding-left: 22px;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        .description {
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 9px 14px;
+            border-radius: 6px;
+            background: #17202a;
+            color: white;
+            text-decoration: none;
+        }
+
+        .button:hover {
+            opacity: 0.9;
+        }
+
+        .loading,
+        .error {
+            background: white;
+            border: 1px solid #d9dee5;
+            border-radius: 8px;
+            padding: 20px;
+        }
+    </style>
+    <link rel="stylesheet" href="/dashboard/theme.css">
+</head>
+
+<body class="dashboard-theme">
+    <header>
+        <h1>ElectroHire Intelligence</h1>
+        <a href="/dashboard">← Back to jobs</a>
+    </header>
+
+    <main id="content">
+        <div class="loading">Loading job details...</div>
+    </main>
+
+    <script>
+        const jobId = {{ job_id | tojson }};
+
+        function escapeHtml(value) {
+            const element = document.createElement("div");
+            element.textContent = value ?? "";
+            return element.innerHTML;
+        }
+
+        function priorityClass(priority) {
+            const value = String(priority || "").toLowerCase();
+
+            if (value === "high") {
+                return "badge priority-high";
+            }
+
+            if (value === "medium") {
+                return "badge priority-medium";
+            }
+
+            return "badge priority-low";
+        }
+
+        function renderList(items) {
+            if (!Array.isArray(items) || !items.length) {
+                return "<p>None recorded.</p>";
+            }
+
+            return `
+                <ul>
+                    ${items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}
+                </ul>
+            `;
+        }
+
+        function renderJob(job) {
+            const ranking = job.ranking || {};
+            const quality = job.quality || {};
+            const priority = ranking.priority || "LOW";
+
+            const sourceUrl = job.source_url
+                ? `
+                    <a
+                        class="button"
+                        href="${escapeHtml(job.source_url)}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Open Job / Apply
+                    </a>
+                  `
+                : "";
+
+            return `
+                <section class="card job-header">
+                    <h2>${escapeHtml(job.title)}</h2>
+
+                    <div class="company">
+                        ${escapeHtml(job.company || "Unknown company")}
+                    </div>
+
+                    <div class="meta">
+                        <span class="badge">
+                            ${escapeHtml(job.location || "Location not specified")}
+                        </span>
+
+                        <span class="badge">
+                            Source: ${escapeHtml(job.source || "Unknown")}
+                        </span>
+
+                        <span class="${priorityClass(priority)}">
+                            ${escapeHtml(priority)}
+                        </span>
+                    </div>
+
+                    <div class="actions" style="margin-top: 16px;">
+                        ${sourceUrl}
+                    </div>
+                </section>
+
+                <section class="card">
+                    <h3>Ranking</h3>
+
+                    <div class="score">
+                        ${escapeHtml(ranking.score ?? "-")}
+                    </div>
+
+                    <p>
+                        Priority:
+                        <strong>${escapeHtml(priority)}</strong>
+                    </p>
+
+                    <h3>Match Reasons</h3>
+                    ${renderList(ranking.reasons)}
+                </section>
+
+                <section class="card">
+                    <h3>Job Quality</h3>
+
+                    <p>
+                        Score:
+                        <strong>${escapeHtml(quality.score ?? "-")}</strong>
+                    </p>
+
+                    <p>
+                        Quality:
+                        <strong>${escapeHtml(quality.quality ?? "-")}</strong>
+                    </p>
+
+                    <h3>Quality Reasons</h3>
+                    ${renderList(quality.reasons)}
+                </section>
+
+                <section class="card">
+                    <h3>Skills</h3>
+                    ${renderList(job.skills)}
+                </section>
+
+                <section class="card">
+                    <h3>Description</h3>
+
+                    <div class="description">
+                        ${escapeHtml(job.description || "No description available.")}
+                    </div>
+                </section>
+            `;
+        }
+
+        async function loadJob() {
+            const content = document.getElementById("content");
+
+            try {
+                const response = await fetch(
+                    `/jobs/${encodeURIComponent(jobId)}`
+                );
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error("Job not found.");
+                    }
+
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const job = await response.json();
+                content.innerHTML = renderJob(job);
+            } catch (error) {
+                console.error(error);
+
+                content.innerHTML = `
+                    <div class="error">
+                        Unable to load job details:
+                        ${escapeHtml(error.message)}
+                    </div>
+                `;
+            }
+        }
+
+        loadJob();
+    </script>
+</body>
+</html>

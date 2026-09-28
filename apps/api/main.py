@@ -1,6 +1,8 @@
 from collections.abc import Generator
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from packages.application.approval import ApplicationApprovalService
@@ -37,6 +39,12 @@ app = FastAPI(
     title="ElectroHire Intelligence API",
     version="0.1.0",
 )
+templates = Jinja2Templates(directory="templates/dashboard")
+
+
+@app.get("/dashboard/theme.css", include_in_schema=False)
+def dashboard_theme() -> FileResponse:
+    return FileResponse("templates/dashboard/theme.css", media_type="text/css")
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -173,6 +181,24 @@ def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/dashboard", include_in_schema=False)
+def dashboard(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={},
+    )
+
+
+@app.get("/dashboard/applications", include_in_schema=False)
+def dashboard_applications(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="applications.html",
+        context={},
+    )
+
+
 @app.get("/jobs")
 def list_jobs(
     session: Session = Depends(get_db),  # noqa: B008
@@ -191,6 +217,15 @@ def list_jobs(
         )
 
     return results
+
+
+@app.get("/dashboard/jobs/{job_id}", include_in_schema=False)
+def dashboard_job_detail(request: Request, job_id: int):
+    return templates.TemplateResponse(
+        request=request,
+        name="job_detail.html",
+        context={"job_id": job_id},
+    )
 
 
 @app.get("/jobs/{job_id}")

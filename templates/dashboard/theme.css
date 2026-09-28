@@ -1,0 +1,324 @@
+:root {
+    color-scheme: dark;
+    --bg: #0b1120;
+    --surface: #111827;
+    --surface-2: #172033;
+    --border: #263247;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --accent: #60a5fa;
+    --accent-hover: #93c5fd;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #f87171;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    background: var(--bg) !important;
+    color: var(--text) !important;
+}
+
+body {
+    min-height: 100vh;
+}
+
+a {
+    color: var(--accent);
+}
+
+a:hover {
+    color: var(--accent-hover);
+}
+
+button,
+input,
+select,
+textarea {
+    color: var(--text);
+}
+
+.dashboard-theme,
+.dashboard-theme * {
+    border-color: var(--border);
+}
+
+.dashboard-theme .card,
+.dashboard-theme .job-card,
+.dashboard-theme .panel,
+.dashboard-theme .summary-card,
+.dashboard-theme .job-details,
+.dashboard-theme .section,
+.dashboard-theme .application-card {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border);
+    box-shadow: var(--shadow);
+}
+
+.dashboard-theme .muted,
+.dashboard-theme .meta,
+.dashboard-theme .secondary,
+.dashboard-theme small {
+    color: var(--muted);
+}
+
+.dashboard-theme .loading,
+.dashboard-theme .empty,
+.dashboard-theme .error {
+    background: var(--surface);
+    color: var(--muted);
+    border-color: var(--border);
+}
+
+.dashboard-theme .priority-high {
+    color: var(--danger);
+}
+
+.dashboard-theme .priority-medium {
+    color: var(--warning);
+}
+
+.dashboard-theme .priority-low {
+    color: var(--success);
+}
+
+.dashboard-theme .button,
+.dashboard-theme button {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+.dashboard-theme .button:hover,
+.dashboard-theme button:hover {
+    background: #202b40;
+}
+
+.dashboard-theme .button-primary {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: white;
+}
+
+.dashboard-theme .button-primary:hover {
+    background: #3b82f6;
+}
+
+.dashboard-theme .button-danger {
+    background: #7f1d1d;
+    border-color: #991b1b;
+    color: #fecaca;
+}
+
+.dashboard-theme .button-danger:hover {
+    background: #991b1b;
+}
+
+.dashboard-theme code {
+    background: #0f172a;
+    color: #cbd5e1;
+}
+
+.dashboard-theme pre {
+    background: #0f172a;
+    color: #cbd5e1;
+    border-color: var(--border);
+}
+
+.dashboard-theme hr {
+    border-color: var(--border);
+}
+
+/* ============================================================
+   Job detail: accessible dark layout
+   ============================================================ */
+
+body.dashboard-theme {
+    background: var(--bg) !important;
+    color: var(--text) !important;
+}
+
+body.dashboard-theme > header {
+    background: #0f172a !important;
+    color: var(--text) !important;
+    border-bottom: 1px solid var(--border);
+}
+
+body.dashboard-theme > header h1,
+body.dashboard-theme > header a {
+    color: var(--text) !important;
+}
+
+body.dashboard-theme > header a:hover {
+    color: var(--accent-hover) !important;
+}
+
+body.dashboard-theme #content {
+    max-width: 1240px !important;
+    margin: 20px auto !important;
+    padding: 0 16px !important;
+}
+
+/* Every job-detail card */
+body.dashboard-theme #content .card {
+    background: var(--surface) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+/* Job header */
+body.dashboard-theme #content .job-header {
+    padding: 22px !important;
+}
+
+body.dashboard-theme #content .job-header h2,
+body.dashboard-theme #content .job-header h1 {
+    color: var(--text) !important;
+}
+
+body.dashboard-theme #content .company,
+body.dashboard-theme #content .meta {
+    color: var(--muted) !important;
+}
+
+/* Replace all old light badges */
+body.dashboard-theme #content .badge {
+    background: var(--surface-2) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+}
+
+body.dashboard-theme #content .priority-high {
+    background: rgba(248, 113, 113, 0.12) !important;
+    color: #fca5a5 !important;
+    border: 1px solid rgba(248, 113, 113, 0.3) !important;
+}
+
+body.dashboard-theme #content .priority-medium {
+    background: rgba(251, 191, 36, 0.12) !important;
+    color: #fcd34d !important;
+    border: 1px solid rgba(251, 191, 36, 0.3) !important;
+}
+
+body.dashboard-theme #content .priority-low {
+    background: rgba(52, 211, 153, 0.12) !important;
+    color: #6ee7b7 !important;
+    border: 1px solid rgba(52, 211, 153, 0.3) !important;
+}
+
+/* Compact information layout */
+body.dashboard-theme #content > .card {
+    margin-bottom: 16px !important;
+}
+
+body.dashboard-theme #content > .card:not(.job-header) {
+    padding: 18px !important;
+}
+
+/* Make score / quality / matching sections easier to scan */
+body.dashboard-theme #content .score {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+}
+
+body.dashboard-theme #content .score > * {
+    background: var(--surface-2) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+    border-radius: 8px !important;
+}
+
+/* Headings */
+body.dashboard-theme #content h2,
+body.dashboard-theme #content h3 {
+    color: var(--text) !important;
+}
+
+body.dashboard-theme #content h3 {
+    margin-bottom: 10px;
+}
+
+/* Description: remove the remaining white background */
+body.dashboard-theme #content .description {
+    background: #0f172a !important;
+    color: #dbe4f0 !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    padding: 20px !important;
+    line-height: 1.7 !important;
+    max-height: 560px;
+    overflow-y: auto;
+}
+
+body.dashboard-theme #content .description * {
+    background: transparent !important;
+    color: inherit !important;
+}
+
+/* Improve readability of normal text */
+body.dashboard-theme #content p,
+body.dashboard-theme #content li,
+body.dashboard-theme #content div {
+    color: inherit;
+}
+
+body.dashboard-theme #content .muted,
+body.dashboard-theme #content .meta {
+    color: var(--muted) !important;
+}
+
+/* Buttons */
+body.dashboard-theme #content .button {
+    background: var(--surface-2) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+}
+
+body.dashboard-theme #content .button:hover {
+    background: #243149 !important;
+    color: white !important;
+}
+
+/* Responsive */
+@media (min-width: 900px) {
+    body.dashboard-theme #content {
+        display: grid;
+        grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.75fr);
+        gap: 16px;
+        align-items: start;
+    }
+
+    body.dashboard-theme #content > .job-header {
+        grid-column: 1 / -1;
+    }
+
+    body.dashboard-theme #content > .job-header + .card {
+        grid-column: 1;
+    }
+
+    body.dashboard-theme #content > .job-header + .card ~ .card {
+        grid-column: 2;
+    }
+
+    body.dashboard-theme #content > .card:last-of-type {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 899px) {
+    body.dashboard-theme #content .score {
+        grid-template-columns: 1fr;
+    }
+
+    body.dashboard-theme #content .description {
+        max-height: none;
+    }
+}

@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ElectroHire Intelligence</title>
+
+    <link rel="stylesheet" href="/dashboard/theme.css">
+
+    <style>
+        :root {
+            --dashboard-bg: #0b1120;
+            --dashboard-surface: #111827;
+            --dashboard-surface-2: #172033;
+            --dashboard-border: #263247;
+            --dashboard-text: #e5e7eb;
+            --dashboard-muted: #94a3b8;
+            --dashboard-accent: #60a5fa;
+            --dashboard-high: #f87171;
+            --dashboard-medium: #fbbf24;
+            --dashboard-low: #34d399;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            min-height: 100%;
+            background: var(--dashboard-bg);
+            color: var(--dashboard-text);
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+        }
+
+        a {
+            color: inherit;
+        }
+
+        .dashboard-header {
+            background: #0f172a;
+            border-bottom: 1px solid var(--dashboard-border);
+        }
+
+        .header-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            min-height: 68px;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+
+        .brand {
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .brand span {
+            color: var(--dashboard-accent);
+        }
+
+        .nav {
+            display: flex;
+            gap: 6px;
+        }
+
+        .nav a {
+            text-decoration: none;
+            color: var(--dashboard-muted);
+            padding: 8px 12px;
+            border-radius: 7px;
+            font-size: 0.9rem;
+        }
+
+        .nav a:hover,
+        .nav a.active {
+            color: var(--dashboard-text);
+            background: var(--dashboard-surface-2);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px 20px 48px;
+        }
+
+        .page-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .page-heading h1 {
+            margin: 0;
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            letter-spacing: -0.03em;
+        }
+
+        .page-heading p {
+            margin: 6px 0 0;
+            color: var(--dashboard-muted);
+            font-size: 0.92rem;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .summary-card {
+            background: var(--dashboard-surface);
+            border: 1px solid var(--dashboard-border);
+            border-radius: 10px;
+            padding: 14px 16px;
+        }
+
+        .summary-label {
+            color: var(--dashboard-muted);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .summary-value {
+            margin-top: 4px;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .search {
+            flex: 1;
+            min-width: 180px;
+            background: var(--dashboard-surface);
+            color: var(--dashboard-text);
+            border: 1px solid var(--dashboard-border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            outline: none;
+        }
+
+        .search:focus {
+            border-color: var(--dashboard-accent);
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.12);
+        }
+
+        .job-count {
+            color: var(--dashboard-muted);
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        .priority-filters {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .priority-filter {
+            border: 1px solid var(--dashboard-border);
+            background: var(--dashboard-surface);
+            color: var(--dashboard-muted);
+            border-radius: 7px;
+            padding: 8px 11px;
+            font-size: 0.78rem;
+            font-weight: 650;
+            cursor: pointer;
+        }
+
+        .priority-filter:hover {
+            color: var(--dashboard-text);
+            background: var(--dashboard-surface-2);
+        }
+
+        .priority-filter.active {
+            color: var(--dashboard-text);
+            background: #1e3a5f;
+            border-color: var(--dashboard-accent);
+        }
+
+
+        .job-list {
+            background: var(--dashboard-surface);
+            border: 1px solid var(--dashboard-border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .job-row {
+            display: grid;
+            grid-template-columns:
+                minmax(280px, 2.4fr)
+                90px
+                110px
+                minmax(150px, 1fr)
+                110px;
+            gap: 16px;
+            align-items: center;
+            padding: 15px 16px;
+            border-bottom: 1px solid var(--dashboard-border);
+        }
+
+        .job-row:last-child {
+            border-bottom: 0;
+        }
+
+        .job-row:hover {
+            background: #151f32;
+        }
+
+        .job-head {
+            background: #0f172a;
+            color: var(--dashboard-muted);
+            font-size: 0.73rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .job-title {
+            min-width: 0;
+        }
+
+        .job-title a {
+            display: block;
+            color: var(--dashboard-text);
+            text-decoration: none;
+            font-weight: 650;
+            line-height: 1.35;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .job-title a:hover {
+            color: var(--dashboard-accent);
+        }
+
+        .company {
+            margin-top: 4px;
+            color: var(--dashboard-muted);
+            font-size: 0.82rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .location,
+        .source {
+            color: var(--dashboard-muted);
+            font-size: 0.82rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .score {
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+        }
+
+        .priority {
+            display: inline-flex;
+            width: fit-content;
+            border-radius: 999px;
+            padding: 4px 9px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+        }
+
+        .priority-high {
+            color: #fecaca;
+            background: rgba(248, 113, 113, 0.12);
+            border: 1px solid rgba(248, 113, 113, 0.25);
+        }
+
+        .priority-medium {
+            color: #fde68a;
+            background: rgba(251, 191, 36, 0.12);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+        }
+
+        .priority-low {
+            color: #a7f3d0;
+            background: rgba(52, 211, 153, 0.12);
+            border: 1px solid rgba(52, 211, 153, 0.25);
+        }
+
+        .match {
+            margin-top: 5px;
+            color: var(--dashboard-muted);
+            font-size: 0.73rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .loading,
+        .empty,
+        .error {
+            padding: 48px 20px;
+            text-align: center;
+            color: var(--dashboard-muted);
+        }
+
+        .error {
+            color: #fca5a5;
+        }
+
+        .mobile-job-meta {
+            display: none;
+        }
+
+        @media (max-width: 950px) {
+            .job-row {
+                grid-template-columns:
+                    minmax(220px, 2fr)
+                    80px
+                    100px;
+            }
+
+            .job-row > .location,
+            .job-row > .source,
+            .job-head > .location,
+            .job-head > .source {
+                display: none;
+            }
+        }
+
+        @media (max-width: 650px) {
+            .header-inner {
+                min-height: auto;
+                padding: 14px 12px;
+                align-items: flex-start;
+            }
+
+            .nav {
+                display: none;
+            }
+
+            .container {
+                padding: 18px 12px 32px;
+            }
+
+            .summary {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .summary-card:last-child {
+                grid-column: 1 / -1;
+            }
+
+            .page-heading {
+                display: block;
+            }
+
+            .job-row {
+                grid-template-columns: 1fr auto;
+                gap: 8px 12px;
+                padding: 14px 12px;
+            }
+
+            .job-head {
+                display: none;
+            }
+
+            .job-row > .location,
+            .job-row > .source {
+                display: none;
+            }
+
+            .job-title a {
+                white-space: normal;
+            }
+
+            .match {
+                white-space: normal;
+            }
+        }
+    </style>
+</head>
+
+<body class="dashboard-theme">
+
+<header class="dashboard-header">
+    <div class="header-inner">
+        <a class="brand" href="/dashboard">
+            ElectroHire <span>Intelligence</span>
+        </a>
+
+        <nav class="nav">
+            <a class="active" href="/dashboard">Jobs</a>
+            <a href="/dashboard/applications">Applications</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+
+    <div class="page-heading">
+        <div>
+            <h1>Job Intelligence</h1>
+            <p>
+                Ranked electronics, embedded and hardware opportunities.
+            </p>
+        </div>
+    </div>
+
+    <section class="summary">
+        <div class="summary-card">
+            <div class="summary-label">Jobs loaded</div>
+            <div class="summary-value" id="jobs-count">—</div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-label">High priority</div>
+            <div class="summary-value" id="high-count">—</div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-label">Medium priority</div>
+            <div class="summary-value" id="medium-count">—</div>
+        </div>
+    </section>
+
+    <div class="toolbar">
+        <input
+            id="search"
+            class="search"
+            type="search"
+            placeholder="Search jobs, companies, locations..."
+            autocomplete="off"
+        >
+
+        <div class="priority-filters" role="group" aria-label="Filter by priority">
+            <button class="priority-filter active" data-priority="ALL">
+                All
+            </button>
+            <button class="priority-filter" data-priority="HIGH">
+                High
+            </button>
+            <button class="priority-filter" data-priority="MEDIUM">
+                Medium
+            </button>
+            <button class="priority-filter" data-priority="LOW">
+                Low
+            </button>
+        </div>
+
+        <span class="job-count" id="visible-count"></span>
+    </div>
+
+    <section class="job-list">
+        <div class="job-row job-head">
+            <div>Job</div>
+            <div>Score</div>
+            <div>Priority</div>
+            <div>Location</div>
+            <div>Source</div>
+        </div>
+
+        <div id="jobs">
+            <div class="loading">Loading jobs...</div>
+        </div>
+    </section>
+
+</main>
+
+<script>
+    let allJobs = [];
+    let selectedPriority = "ALL";
+
+    const jobsContainer = document.getElementById("jobs");
+    const searchInput = document.getElementById("search");
+    const visibleCount = document.getElementById("visible-count");
+
+    function escapeHtml(value) {
+        const div = document.createElement("div");
+        div.textContent = value ?? "";
+        return div.innerHTML;
+    }
+
+    function priorityClass(priority) {
+        const normalized = String(priority || "").toLowerCase();
+
+        if (normalized === "high") {
+            return "priority priority-high";
+        }
+
+        if (normalized === "medium") {
+            return "priority priority-medium";
+        }
+
+        return "priority priority-low";
+    }
+
+    function renderJobs(jobs) {
+        if (!jobs.length) {
+            jobsContainer.innerHTML = `
+                <div class="empty">
+                    No matching jobs found.
+                </div>
+            `;
+
+            visibleCount.textContent = "0 jobs";
+            return;
+        }
+
+        visibleCount.textContent =
+            `${jobs.length} ${jobs.length === 1 ? "job" : "jobs"}`;
+
+        jobsContainer.innerHTML = jobs.map(job => {
+            const ranking = job.ranking || {};
+            const priority = ranking.priority || "LOW";
+            const score = Number(ranking.score ?? 0).toFixed(1);
+            const workLocation = job.location || "Location not specified";
+
+            return `
+                <article class="job-row">
+                    <div class="job-title">
+                        <a
+                            href="/dashboard/jobs/${encodeURIComponent(job.id)}"
+                        >
+                            ${escapeHtml(job.title || "Untitled job")}
+                        </a>
+
+                        <div class="company">
+                            ${escapeHtml(job.company || "Unknown company")}
+                        </div>
+
+                        <div class="match">
+                            Work location: ${escapeHtml(workLocation)}
+                        </div>
+                    </div>
+
+                    <div class="score">
+                        ${score}
+                    </div>
+
+                    <div>
+                        <span class="${priorityClass(priority)}">
+                            ${escapeHtml(priority)}
+                        </span>
+                    </div>
+
+                    <div class="location">
+                        ${escapeHtml(job.location || "—")}
+                    </div>
+
+                    <div class="source">
+                        ${escapeHtml(job.source || "—")}
+                    </div>
+                </article>
+            `;
+        }).join("");
+    }
+
+    function filterJobs() {
+        const query = searchInput.value.trim().toLowerCase();
+
+        const filtered = allJobs.filter(job => {
+            const priority = String(
+                job.ranking?.priority || "LOW"
+            ).toUpperCase();
+
+            const matchesPriority =
+                selectedPriority === "ALL" ||
+                priority === selectedPriority;
+
+            if (!matchesPriority) {
+                return false;
+            }
+
+            if (!query) {
+                return true;
+            }
+
+            const searchable = [
+                job.title,
+                job.company,
+                job.location,
+                job.source,
+                job.description
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+            return searchable.includes(query);
+        });
+
+        renderJobs(filtered);
+    }
+
+    document.querySelectorAll(".priority-filter").forEach(button => {
+        button.addEventListener("click", () => {
+            selectedPriority = button.dataset.priority;
+
+            document.querySelectorAll(".priority-filter").forEach(item => {
+                item.classList.toggle(
+                    "active",
+                    item === button
+                );
+            });
+
+            filterJobs();
+        });
+    });
+
+    async function loadJobs() {
+        jobsContainer.innerHTML =
+            '<div class="loading">Loading jobs...</div>';
+
+        try {
+            const response = await fetch("/jobs");
+
+            if (!response.ok) {
+                throw new Error(
+                    `Request failed with status ${response.status}`
+                );
+            }
+
+            allJobs = await response.json();
+
+            const high = allJobs.filter(
+                job => String(job.ranking?.priority).toUpperCase() === "HIGH"
+            ).length;
+
+            const medium = allJobs.filter(
+                job => String(job.ranking?.priority).toUpperCase() === "MEDIUM"
+            ).length;
+
+            document.getElementById("jobs-count").textContent =
+                allJobs.length;
+
+            document.getElementById("high-count").textContent = high;
+            document.getElementById("medium-count").textContent = medium;
+
+            renderJobs(allJobs);
+        } catch (error) {
+            jobsContainer.innerHTML = `
+                <div class="error">
+                    Unable to load jobs: ${escapeHtml(error.message)}
+                </div>
+            `;
+        }
+    }
+
+    searchInput.addEventListener("input", filterJobs);
+
+    loadJobs();
+</script>
+
+</body>
+</html>

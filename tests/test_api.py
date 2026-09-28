@@ -61,6 +61,32 @@ def test_health_check() -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_dashboard_page_renders() -> None:
+    response = client.get("/dashboard")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "ElectroHire Intelligence" in response.text
+
+
+def test_dashboard_applications_page_renders() -> None:
+    response = client.get("/dashboard/applications")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "Applications" in response.text
+    assert "/applications/approvals" in response.text
+
+
+def test_dashboard_job_detail_page_renders() -> None:
+    response = client.get("/dashboard/jobs/123")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "Loading job details..." in response.text
+    assert "123" in response.text
+
+
 def test_list_jobs_returns_empty_list() -> None:
     response = client.get("/jobs")
 

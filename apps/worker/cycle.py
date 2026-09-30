@@ -434,6 +434,7 @@ class WorkerCycle:
         total_evaluated_jobs = 0
         total_ignored_jobs = 0
         total_application_stats = ApplicationRunStats()
+        source_errors: list[str] = []
 
         for source in self.sources:
 
@@ -443,18 +444,26 @@ class WorkerCycle:
 
             application_stats = ApplicationRunStats()
 
-            new_count, evaluated_count, ignored_count = process_source(
-                source=source,
-                repository=self.repository,
-                decision_repository=self.decision_repository,
-                application_service=self.application_service,
-                application_repository=self.application_repository,
-                target_discovery=self.target_discovery,
-                stats=application_stats,
-                execution_mode=self.settings.application_execution_mode,
-                approval_service=self.approval_service,
-                candidate_profile=self.candidate_profile,
-            )
+            try:
+                new_count, evaluated_count, ignored_count = process_source(
+                    source=source,
+                    repository=self.repository,
+                    decision_repository=self.decision_repository,
+                    application_service=self.application_service,
+                    application_repository=self.application_repository,
+                    target_discovery=self.target_discovery,
+                    stats=application_stats,
+                    execution_mode=self.settings.application_execution_mode,
+                    approval_service=self.approval_service,
+                    candidate_profile=self.candidate_profile,
+                )
+            except Exception as exc:
+                error_message = (
+                    f"Source {source.name!r} failed: {exc}"
+                )
+                source_errors.append(error_message)
+                print(error_message)
+                continue
 
             total_new_jobs += new_count
             total_evaluated_jobs += evaluated_count
@@ -569,10 +578,11 @@ class WorkerCycle:
         return WorkerRunReport(
             started_at=started_at,
             completed_at=completed_at,
-            success=True,
+            success=not source_errors,
             queries_processed=len(self.sources),
             new_jobs=total_new_jobs,
             evaluated_jobs=total_evaluated_jobs,
             ignored_jobs=total_ignored_jobs,
             application_stats=total_application_stats,
+            error="; ".join(source_errors) if source_errors else None,
         )
